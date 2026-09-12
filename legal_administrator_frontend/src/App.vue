@@ -1,11 +1,17 @@
-<script setup></script>
+<script setup>
+import MainLayout from '@/layouts/MainLayout.vue'
+</script>
 
 <template>
-  <h1>You did it!</h1>
-  <p>
-    Visit <a href="https://vuejs.org/" target="_blank" rel="noopener">vuejs.org</a> to read the
-    documentation
-  </p>
+  <MainLayout>
+    <router-view v-slot="{ Component }">
+      <transition name="fade" mode="out-in">
+        <component :is="Component" />
+      </transition>
+    </router-view>
+  </MainLayout>
 </template>
 
-<style scoped></style>
+<style>
+/* Estilos globales y transiciones a nivel de App */
+</style>
