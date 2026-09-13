@@ -425,4 +425,5 @@ h1 em, h2 em { color: var(--coral); font-weight: 600; }
   html { scroll-behavior: auto; }
   *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; }
 }
+
 </style>
