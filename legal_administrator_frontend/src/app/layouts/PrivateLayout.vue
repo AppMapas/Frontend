@@ -1,4 +1,5 @@
 <script setup>
+import { RouterView } from 'vue-router'
 import AppNavbar from '@/components/navigation/AppNavbar.vue'
 </script>
 
@@ -10,7 +11,7 @@ import AppNavbar from '@/components/navigation/AppNavbar.vue'
     <!-- Contenido dinámico de las páginas -->
     <main class="main-content">
       <div class="content-wrapper">
-        <slot />
+        <RouterView />
       </div>
     </main>
 
