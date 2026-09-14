@@ -39,6 +39,7 @@ const applyTheme = (isDark) => {
   isDarkMode.value = isDark
   document.documentElement.dataset.theme = isDark ? 'dark' : 'light'
   localStorage.setItem('legal-administrator-theme', isDark ? 'dark' : 'light')
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', isDark ? '#15211F' : '#F4F6F6')
 }
 
 const toggleTheme = () => {
@@ -190,16 +191,6 @@ onMounted(() => {
 .navbar-wrapper {
   width: 100%;
   background-color: var(--color-bg-body);
-  --color-bg-body: #F4F6F6;
-  --color-bg-card: #FFFFFF;
-  --color-bg-elevated: #FFFFFF;
-  --color-bg-subtle: #F0F4F3;
-  --color-text-title: #1C2725;
-  --color-text-body: #2B3A37;
-  --color-text-muted: #5C6E6A;
-  --color-border-subtle: rgba(140, 170, 162, 0.22);
-  --color-border-medium: rgba(140, 170, 162, 0.45);
-  --color-divider: #E5EBE9;
   padding: 0.85rem 1.25rem 0 1.25rem;
   box-sizing: border-box;
   position: sticky;
@@ -212,7 +203,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background-color: #FFFFFF;
+  background-color: var(--color-bg-card);
   border-top-left-radius: var(--radius-lg);
   border-top-right-radius: var(--radius-lg);
   box-shadow: var(--shadow-navbar);
@@ -220,7 +211,6 @@ onMounted(() => {
   border-bottom: none;
   padding: 0.75rem 1.75rem;
   min-height: 64px;
-  overflow: hidden;
 }
 
 /* Línea superior que integra armónicamente la paleta oficial de docs/ui.md */
@@ -231,6 +221,8 @@ onMounted(() => {
   left: 0;
   right: 0;
   height: 3px;
+  border-top-left-radius: var(--radius-lg);
+  border-top-right-radius: var(--radius-lg);
   background: linear-gradient(90deg, var(--color-coral) 0%, var(--color-soft-coral) 28%, var(--color-sage) 52%, var(--color-teal) 76%, var(--color-deep-teal) 100%);
 }
 
@@ -270,7 +262,7 @@ onMounted(() => {
   padding: 0.2rem 0.6rem;
   border-radius: var(--radius-full);
   background: rgba(90, 155, 149, 0.12);
-  color: var(--color-deep-teal);
+  color: var(--color-teal-strong);
   border: 1px solid rgba(90, 155, 149, 0.35);
   letter-spacing: 0.02em;
 }

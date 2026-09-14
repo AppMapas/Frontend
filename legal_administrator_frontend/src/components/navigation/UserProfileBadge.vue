@@ -185,7 +185,7 @@ onUnmounted(() => {
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-lg);
   padding: 0.5rem;
-  z-index: 100;
+  z-index: 200;
 }
 
 .user-info-header {

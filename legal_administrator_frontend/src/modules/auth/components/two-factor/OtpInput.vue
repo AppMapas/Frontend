@@ -126,7 +126,7 @@ const handlePaste = (event) => {
   border-radius: var(--radius-sm);
   padding: 0;
   color: var(--color-text-title);
-  background: #fff;
+  background: var(--color-bg-subtle);
   font-family: var(--font-mono);
   font-size: 1.25rem;
   font-weight: 700;

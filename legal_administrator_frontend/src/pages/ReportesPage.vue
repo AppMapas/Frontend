@@ -221,7 +221,7 @@ const departmentStats = [
 .unit-math {
   font-size: 1.15rem;
   font-weight: 700;
-  color: var(--color-deep-teal);
+  color: var(--color-teal-strong);
   margin: 0.35rem 0;
 }
 

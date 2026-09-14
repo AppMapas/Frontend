@@ -151,7 +151,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', keyboard))
 .editor-grid { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(340px, 1fr); gap: 1.25rem; align-items: start; }
 .drawing-card { position: sticky; top: calc(var(--navbar-height) + 1rem); }
 h2 { font-size: 1rem; margin: 0; }
-.status { font-size: .75rem; color: var(--color-deep-teal); margin-left: 1rem; text-align: right; }
+.status { font-size: .75rem; color: var(--color-teal-strong); margin-left: 1rem; text-align: right; }
 .hint, .local-note { font-size: .8rem; color: var(--color-text-muted); line-height: 1.6; }
 .local-note { margin: 1rem 0; }
 .side-content { display: grid; gap: 1.2rem; }

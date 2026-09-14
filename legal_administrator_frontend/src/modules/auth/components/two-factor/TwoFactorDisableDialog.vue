@@ -94,12 +94,12 @@ const handleSubmit = () => {
 .close-button:disabled { opacity: 0.45; cursor: wait; }
 .disable-form { display: flex; flex-direction: column; gap: 1.3rem; padding: 1.5rem; }
 .warning-notice { border: 1px solid rgba(224, 159, 62, 0.3); border-radius: var(--radius-sm); padding: 0.85rem 1rem; background: rgba(224, 159, 62, 0.08); }
-.warning-notice strong { color: #7d5822; font-size: 0.8rem; }
+.warning-notice strong { color: var(--color-warning-strong); font-size: 0.8rem; }
 .warning-notice p { margin: 0.2rem 0 0; color: var(--color-text-muted); font-size: 0.74rem; }
 fieldset { min-width: 0; margin: 0; border: 0; padding: 0; }
 legend { margin-bottom: 0.65rem; color: var(--color-text-title); font-size: 0.76rem; font-weight: 700; }
 .field-error { display: block; margin-top: 0.5rem; color: var(--color-danger); font-size: 0.7rem; }
-.error-notice { display: flex; align-items: flex-start; gap: 0.6rem; border-left: 3px solid var(--color-danger); padding: 0.8rem 0.9rem; color: #8e454c; background: rgba(217, 83, 79, 0.08); font-size: 0.74rem; }
+.error-notice { display: flex; align-items: flex-start; gap: 0.6rem; border-left: 3px solid var(--color-danger); padding: 0.8rem 0.9rem; color: var(--color-danger-strong); background: rgba(217, 83, 79, 0.08); font-size: 0.74rem; }
 .error-notice svg { width: 1rem; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; }
 .dialog-actions { display: flex; justify-content: flex-end; gap: 0.65rem; border-top: 1px solid var(--color-border-subtle); padding-top: 1.2rem; }
 .danger-button { display: inline-flex; height: 40px; align-items: center; justify-content: center; gap: 0.5rem; border-radius: var(--radius-sm); padding: 0.55rem 1.15rem; color: #fff; background: var(--color-danger); font-size: 0.875rem; font-weight: 700; transition: opacity var(--transition-fast), transform var(--transition-fast); }

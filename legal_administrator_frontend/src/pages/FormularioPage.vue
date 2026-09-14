@@ -359,7 +359,7 @@ const calculateArea = () => {
 }
 
 .metric-secondary {
-  color: var(--color-deep-teal);
+  color: var(--color-teal-strong);
 }
 
 .result-divider {

@@ -158,7 +158,7 @@ onBeforeUnmount(() => {
 .security-title p:last-child { margin: 0; color: var(--color-text-muted); font-size: 0.8rem; }
 .section-eyebrow { margin: 0; color: var(--color-teal); font-family: var(--font-mono); font-size: 0.68rem; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase; }
 .shield-icon { display: grid; width: 2.75rem; height: 2.75rem; flex: none; place-items: center; border-radius: var(--radius-md); color: var(--color-text-muted); background: var(--color-bg-subtle); transition: color var(--transition-normal), background var(--transition-normal); }
-.shield-icon.active { color: var(--color-deep-teal); background: rgba(90, 155, 149, 0.15); }
+.shield-icon.active { color: var(--color-teal-strong); background: rgba(90, 155, 149, 0.15); }
 .shield-icon svg { width: 1.5rem; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.8; }
 .status-dot { width: 0.42rem; height: 0.42rem; border-radius: 50%; background: var(--color-text-subtle); }
 .status-dot.active { background: var(--color-success); box-shadow: 0 0 0 3px rgba(78, 159, 118, 0.12); }
@@ -171,9 +171,9 @@ onBeforeUnmount(() => {
 .security-action-panel { display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 0.65rem; border: 1px solid var(--color-border-subtle); border-radius: var(--radius-md); padding: 1rem; text-align: center; background: var(--color-bg-subtle); }
 .security-action-panel.active { border-color: rgba(90, 155, 149, 0.25); background: rgba(90, 155, 149, 0.07); }
 .security-action-panel p { margin: 0; color: var(--color-text-muted); font-size: 0.72rem; }
-.action-icon { display: grid; width: 2rem; height: 2rem; place-items: center; border-radius: 50%; color: var(--color-deep-teal); background: #fff; }
+.action-icon { display: grid; width: 2rem; height: 2rem; place-items: center; border-radius: 50%; color: var(--color-teal-strong); background: var(--color-bg-subtle); }
 .action-icon svg { width: 1rem; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.8; }
-.success-message { display: flex; align-items: center; gap: 0.6rem; border-top: 1px solid rgba(78, 159, 118, 0.2); padding: 0.8rem 1.5rem; color: #367454; background: rgba(78, 159, 118, 0.08); font-size: 0.76rem; font-weight: 600; }
+.success-message { display: flex; align-items: center; gap: 0.6rem; border-top: 1px solid rgba(78, 159, 118, 0.2); padding: 0.8rem 1.5rem; color: var(--color-success-strong); background: rgba(78, 159, 118, 0.08); font-size: 0.76rem; font-weight: 600; }
 .success-message svg { width: 1.1rem; flex: none; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.9; }
 .success-message button { margin-left: auto; color: currentColor; font-size: 1.2rem; line-height: 1; }
 @media (max-width: 760px) { .security-body { grid-template-columns: 1fr; }.security-header { align-items: stretch; flex-direction: column; }.security-header :deep(.base-badge) { align-self: flex-start; } }

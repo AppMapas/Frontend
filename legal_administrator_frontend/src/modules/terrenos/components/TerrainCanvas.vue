@@ -25,6 +25,12 @@ let width = 800
 const height = 480
 let resizeObserver
 let pointer = null
+let themeObserver
+
+function cssVar(name, fallback = '') {
+  const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim()
+  return value || fallback
+}
 
 function visibleVertices() {
   return pointer?.kind === 'vertex' && pointer.moved
@@ -53,9 +59,9 @@ function path(ctx, points, close = true) {
 function label(ctx, text, point) {
   ctx.font = '12px system-ui, sans-serif'
   const size = ctx.measureText(text).width
-  ctx.fillStyle = '#FFFFFF'
+  ctx.fillStyle = cssVar('--color-bg-elevated', '#FFFFFF')
   ctx.fillRect(point.x - size / 2 - 5, point.y - 10, size + 10, 20)
-  ctx.fillStyle = '#44878F'
+  ctx.fillStyle = cssVar('--color-teal-strong', '#44878F')
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
   ctx.fillText(text, point.x, point.y)
@@ -69,10 +75,10 @@ function draw() {
   const ratio = canvas.value.width / width
   ctx.setTransform(ratio, 0, 0, ratio, 0, 0)
   ctx.clearRect(0, 0, width, height)
-  ctx.fillStyle = '#F0F4F3'
+  ctx.fillStyle = cssVar('--color-bg-subtle', '#F0F4F3')
   ctx.fillRect(0, 0, width, height)
   ctx.lineWidth = 1
-  ctx.strokeStyle = '#E5EBE9'
+  ctx.strokeStyle = cssVar('--color-divider', '#E5EBE9')
   ctx.setLineDash([])
   const spacing = gridStep() * view.scale
   const startX = ((view.offsetX % spacing) + spacing) % spacing
@@ -83,18 +89,18 @@ function draw() {
   if (vertices.length) {
     path(ctx, vertices, props.closed)
     ctx.lineWidth = 2.5
-    ctx.strokeStyle = props.calculated ? '#44878F' : '#FF8591'
+    ctx.strokeStyle = props.calculated ? cssVar('--color-teal-strong', '#44878F') : cssVar('--color-coral', '#FF8591')
     ctx.setLineDash(props.calculated ? [] : [5, 4])
     ctx.stroke()
     ctx.setLineDash([])
-    if (props.closed && !props.regions.length) { ctx.fillStyle = '#FF859130'; ctx.fill() }
+    if (props.closed && !props.regions.length) { ctx.fillStyle = cssVar('--color-coral', '#FF8591') + '30'; ctx.fill() }
     const colors = ['#5A9B9566', '#8CAAA280', '#EFAAA373']
     props.regions.forEach((region, index) => {
       if (!region.points?.length) return
       path(ctx, region.points)
       ctx.fillStyle = colors[index % colors.length]
       ctx.fill()
-      ctx.strokeStyle = '#44878F'
+      ctx.strokeStyle = cssVar('--color-teal-strong', '#44878F')
       ctx.lineWidth = 1
       ctx.stroke()
       const center = region.points.reduce((p, next) => ({ x: p.x + next.x / region.points.length, y: p.y + next.y / region.points.length }), { x: 0, y: 0 })
@@ -107,7 +113,7 @@ function draw() {
         if (props.selectedSideId !== null && props.boundaries[i]?.id === props.selectedSideId) {
           path(ctx, [point, next], false)
           ctx.lineWidth = 5
-          ctx.strokeStyle = '#FF8591'
+          ctx.strokeStyle = cssVar('--color-coral', '#FF8591')
           ctx.stroke()
         }
         const text = formatSideMeasurements(props.boundaries[i]?.measurements ?? [])
@@ -115,19 +121,19 @@ function draw() {
       }
       const selected = props.selectedVertexIndex === i
       ctx.beginPath(); ctx.arc(p.x, p.y, selected ? 8 : 5, 0, Math.PI * 2)
-      ctx.fillStyle = selected ? '#44878F' : '#FF8591'; ctx.fill()
+      ctx.fillStyle = selected ? cssVar('--color-teal-strong', '#44878F') : cssVar('--color-coral', '#FF8591'); ctx.fill()
       ctx.lineWidth = 1.5; ctx.strokeStyle = '#FFFFFF'; ctx.stroke()
       if (props.tool === 'draw' && !props.closed && i === 0 && vertices.length >= 3) {
         ctx.beginPath(); ctx.arc(p.x, p.y, 12, 0, Math.PI * 2)
-        ctx.lineWidth = 1; ctx.strokeStyle = '#FF8591'; ctx.stroke()
+        ctx.lineWidth = 1; ctx.strokeStyle = cssVar('--color-coral', '#FF8591'); ctx.stroke()
       }
-      ctx.fillStyle = '#1C2725'; ctx.font = 'bold 12px system-ui, sans-serif'
+      ctx.fillStyle = cssVar('--color-text-title', '#1C2725'); ctx.font = 'bold 12px system-ui, sans-serif'
       ctx.textAlign = 'left'; ctx.fillText(vertexLabel(i), p.x + 9, p.y - 12)
       if (props.closed && vertices.length > 2) {
         const previous = vertices[(i + vertices.length - 1) % vertices.length]
         const angle = interiorAngleDegrees(previous, point, next)
         if (angle !== null) {
-          ctx.fillStyle = '#5A9B95'; ctx.font = '11px monospace'
+          ctx.fillStyle = cssVar('--color-teal', '#5A9B95'); ctx.font = '11px monospace'
           ctx.fillText(`${angle.toFixed(0)}°`, p.x + 9, p.y + 14)
         }
       }
@@ -141,22 +147,23 @@ function draw() {
   }
   if (guide.length) {
     path(ctx, guide, false)
-    ctx.lineWidth = 2; ctx.setLineDash([5, 4]); ctx.strokeStyle = '#5A9B95'; ctx.stroke(); ctx.setLineDash([])
+    ctx.lineWidth = 2; ctx.setLineDash([5, 4]); ctx.strokeStyle = cssVar('--color-teal', '#5A9B95'); ctx.stroke(); ctx.setLineDash([])
     guide.forEach((point) => {
       const p = toScreen(point, view)
-      ctx.beginPath(); ctx.arc(p.x, p.y, props.tool === 'select' ? 7 : 4, 0, 2 * Math.PI); ctx.fillStyle = '#44878F'; ctx.fill()
+      ctx.beginPath(); ctx.arc(p.x, p.y, props.tool === 'select' ? 7 : 4, 0, 2 * Math.PI); ctx.fillStyle = cssVar('--color-teal-strong', '#44878F'); ctx.fill()
       ctx.strokeStyle = '#FFFFFF'; ctx.lineWidth = 1.5; ctx.stroke()
     })
     if (props.tool === 'draw' && guide.length === 2) {
       const p = toScreen(guide[1], view)
-      ctx.fillStyle = '#44878F'; ctx.font = '12px monospace'; ctx.textAlign = 'left'
+      ctx.fillStyle = cssVar('--color-teal-strong', '#44878F'); ctx.font = '12px monospace'; ctx.textAlign = 'left'
       ctx.fillText(`${Math.round(bearingDegrees(guide[0], guide[1])) % 360}°`, p.x + 8, p.y - 8)
     }
   }
-  ctx.fillStyle = '#44878F'; ctx.textAlign = 'center'; ctx.font = 'bold 14px system-ui'
+  ctx.fillStyle = cssVar('--color-teal-strong', '#44878F'); ctx.textAlign = 'center'; ctx.font = 'bold 14px system-ui'
   ctx.fillText('N', width - 30, 22)
   ctx.beginPath(); ctx.moveTo(width - 30, 34); ctx.lineTo(width - 36, 50); ctx.lineTo(width - 24, 50); ctx.closePath(); ctx.fill()
   ctx.font = '12px system-ui'; ctx.textAlign = 'left'
+  ctx.fillStyle = cssVar('--color-text-muted', '#5C6E6A')
   ctx.fillText(props.calculated ? 'Coordenadas en metros · vista previa local' : 'Croquis de direcciones · ingresa las medidas al cerrar', 14, height - 16)
 }
 
@@ -346,8 +353,19 @@ watch(() => [props.vertices, props.closed, props.calculated], (_, previous) => {
 watch(() => [props.regions, props.streetPoints, props.selectedSideId, props.selectedVertexIndex, props.snapEnabled, props.boundaries], draw, { deep: true })
 watch(() => [props.tool, props.busy], cancelPointer)
 watch(preview, draw)
-onMounted(() => { resizeObserver = new ResizeObserver(resize); resizeObserver.observe(canvas.value); resize(); fit() })
-onBeforeUnmount(() => { resizeObserver?.disconnect(); releasePointer() })
+onMounted(() => {
+  resizeObserver = new ResizeObserver(resize)
+  resizeObserver.observe(canvas.value)
+  resize()
+  fit()
+  themeObserver = new MutationObserver(draw)
+  themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] })
+})
+onBeforeUnmount(() => {
+  resizeObserver?.disconnect()
+  themeObserver?.disconnect()
+  releasePointer()
+})
 </script>
 
 <template>

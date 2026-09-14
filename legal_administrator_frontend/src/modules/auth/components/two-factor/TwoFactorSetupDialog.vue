@@ -190,7 +190,7 @@ const copyManualKey = async () => {
 .dialog-heading h2 { margin: 0.1rem 0 0.35rem; font-size: 1.25rem; }
 .dialog-heading p { margin: 0; color: var(--color-text-muted); font-size: 0.82rem; line-height: 1.5; }
 .dialog-eyebrow { color: var(--color-teal) !important; font-family: var(--font-mono); font-size: 0.68rem !important; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
-.security-icon { display: grid; width: 2.75rem; height: 2.75rem; flex: none; place-items: center; border-radius: var(--radius-md); color: var(--color-deep-teal); background: rgba(90, 155, 149, 0.14); }
+.security-icon { display: grid; width: 2.75rem; height: 2.75rem; flex: none; place-items: center; border-radius: var(--radius-md); color: var(--color-teal-strong); background: rgba(90, 155, 149, 0.14); }
 .security-icon svg { width: 1.45rem; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.8; }
 .close-button { display: grid; width: 2.25rem; height: 2.25rem; flex: none; place-items: center; border-radius: var(--radius-sm); color: var(--color-text-muted); }
 .close-button:hover:not(:disabled) { color: var(--color-text-title); background: var(--color-bg-subtle); }
@@ -205,24 +205,24 @@ const copyManualKey = async () => {
 .step-heading h3 { margin: 0 0 0.18rem; font-size: 0.95rem; }
 .step-heading p { margin: 0; color: var(--color-text-muted); font-size: 0.78rem; line-height: 1.5; }
 .qr-section { display: grid; grid-template-columns: 180px 1fr; align-items: center; gap: 1.2rem; border: 1px solid var(--color-border-subtle); border-radius: var(--radius-md); padding: 1rem; background: var(--color-bg-subtle); }
-.qr-frame { display: grid; aspect-ratio: 1; place-items: center; border: 1px solid var(--color-border-subtle); border-radius: var(--radius-sm); padding: 0.65rem; background: #fff; }
+.qr-frame { display: grid; aspect-ratio: 1; place-items: center; border: 1px solid var(--color-border-subtle); border-radius: var(--radius-sm); padding: 0.65rem; background: var(--color-bg-subtle); }
 .qr-frame img { display: block; width: 100%; height: 100%; object-fit: contain; }
 .manual-key-panel > p { margin: 0; color: var(--color-text-muted); font-size: 0.76rem; line-height: 1.5; }
 .manual-label { margin-bottom: 0.15rem !important; color: var(--color-text-title) !important; font-weight: 700; }
 .manual-key-row { display: flex; align-items: center; gap: 0.5rem; margin: 0.75rem 0 0.55rem; }
-.manual-key-row code { min-width: 0; flex: 1; overflow: hidden; border: 1px solid var(--color-border-subtle); border-radius: var(--radius-xs); padding: 0.55rem 0.65rem; color: var(--color-deep-teal); background: #fff; font-family: var(--font-mono); font-size: 0.75rem; font-weight: 600; letter-spacing: 0.04em; text-overflow: ellipsis; white-space: nowrap; }
-.key-action, .copy-button { color: var(--color-deep-teal); font-size: 0.72rem; font-weight: 700; }
+.manual-key-row code { min-width: 0; flex: 1; overflow: hidden; border: 1px solid var(--color-border-subtle); border-radius: var(--radius-xs); padding: 0.55rem 0.65rem; color: var(--color-teal-strong); background: var(--color-bg-subtle); font-family: var(--font-mono); font-size: 0.75rem; font-weight: 600; letter-spacing: 0.04em; text-overflow: ellipsis; white-space: nowrap; }
+.key-action, .copy-button { color: var(--color-teal-strong); font-size: 0.72rem; font-weight: 700; }
 .key-action:hover, .copy-button:hover { color: var(--color-coral); }
 .copy-button { display: inline-flex; align-items: center; gap: 0.4rem; }
 .copy-button svg { width: 0.95rem; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.7; }
 .copy-error { display: block; margin-top: 0.35rem; color: var(--color-danger); font-size: 0.68rem; }
 .otp-field { padding-left: 2.55rem; }
 .field-error { display: block; margin-top: 0.5rem; color: var(--color-danger); font-size: 0.7rem; }
-.error-notice { display: flex; align-items: flex-start; gap: 0.7rem; border-left: 3px solid var(--color-danger); padding: 0.85rem 1rem; color: #8e454c; background: rgba(217, 83, 79, 0.08); }
+.error-notice { display: flex; align-items: flex-start; gap: 0.7rem; border-left: 3px solid var(--color-danger); padding: 0.85rem 1rem; color: var(--color-danger-strong); background: rgba(217, 83, 79, 0.08); }
 .error-notice > svg { width: 1.1rem; flex: none; margin-top: 0.08rem; fill: none; stroke: currentColor; stroke-width: 1.8; }
 .error-notice strong { font-size: 0.78rem; }
 .error-notice p { margin: 0.12rem 0 0.35rem; color: inherit; font-size: 0.73rem; line-height: 1.45; }
-.error-notice button { color: var(--color-deep-teal); font-size: 0.72rem; font-weight: 700; text-decoration: underline; }
+.error-notice button { color: var(--color-teal-strong); font-size: 0.72rem; font-weight: 700; text-decoration: underline; }
 .error-notice button:disabled { opacity: 0.55; cursor: wait; }
 .error-notice small { display: block; margin-top: 0.15rem; font-size: 0.65rem; }
 .dialog-actions { display: flex; justify-content: flex-end; gap: 0.65rem; border-top: 1px solid var(--color-border-subtle); padding-top: 1.25rem; }
