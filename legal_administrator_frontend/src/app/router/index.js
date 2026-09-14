@@ -1,9 +1,9 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { authRoutes } from '@/modules/auth/routes'
 import { landingRoutes } from '@/modules/landing/routes'
+import { terrainRoutes } from '@/modules/terrenos/routes'
 
 const PrivateLayout = () => import('@/app/layouts/PrivateLayout.vue')
-const TerrenosPage = () => import('@/pages/TerrenosPage.vue')
 const HistorialPage = () => import('@/pages/HistorialPage.vue')
 const ReportesPage = () => import('@/pages/ReportesPage.vue')
 const ClientesPage = () => import('@/pages/ClientesPage.vue')
@@ -22,12 +22,7 @@ const routes = [
         path: '',
         redirect: '/terrenos',
       },
-      {
-        path: '/terrenos',
-        name: 'terrenos',
-        component: TerrenosPage,
-        meta: { title: 'Terrenos — Cálculo de Áreas' },
-      },
+      ...terrainRoutes,
       {
         path: '/formulario',
         redirect: '/terrenos',

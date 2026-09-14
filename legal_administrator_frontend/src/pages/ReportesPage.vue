@@ -3,6 +3,7 @@ import PageHeader from '@/components/common/PageHeader.vue'
 import BaseCard from '@/components/common/BaseCard.vue'
 import BaseButton from '@/components/common/BaseButton.vue'
 import BaseBadge from '@/components/common/BaseBadge.vue'
+import { CONVERSION_FACTORS } from '@/utils/constants'
 
 const kpis = [
   { title: 'Total Expedientes', value: '142', change: '+12% este mes', badgeVariant: 'teal' },
@@ -81,18 +82,18 @@ const departmentStats = [
 
         <div class="units-summary">
           <div class="unit-box">
-            <span class="unit-title">Factor de Conversión Oficial RGP</span>
-            <p class="unit-math font-mono">1 vara = 0.835906 m</p>
+            <span class="unit-title">Factor de conversión del sistema</span>
+            <p class="unit-math font-mono">1 vara = {{ CONVERSION_FACTORS.VARA_TO_M }} m</p>
             <p class="unit-desc text-muted">
-              Equivalencia legal utilizada en las escrituras del Registro General de la Propiedad en Guatemala.
+              Equivalencia utilizada para los cálculos de terrenos del sistema.
             </p>
           </div>
 
           <div class="unit-box">
             <span class="unit-title">Factor de Superficie Cuadrada</span>
-            <p class="unit-math font-mono">1 v² = 0.698739 m²</p>
+            <p class="unit-math font-mono">1 v² = {{ CONVERSION_FACTORS.VARA2_TO_M2.toFixed(6) }} m²</p>
             <p class="unit-desc text-muted">
-              1 vara cuadrada = 0.835906 × 0.835906 m². 1 cuerda = 441 varas cuadradas estándar.
+              1 vara cuadrada = {{ CONVERSION_FACTORS.VARA_TO_M }} × {{ CONVERSION_FACTORS.VARA_TO_M }} m². 1 cuerda = 441 varas cuadradas estándar.
             </p>
           </div>
         </div>

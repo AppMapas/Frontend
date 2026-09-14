@@ -44,7 +44,7 @@ import AppNavbar from '@/components/navigation/AppNavbar.vue'
 }
 
 .content-wrapper {
-  background-color: #FFFFFF;
+  background-color: var(--color-bg-card);
   border-bottom-left-radius: var(--radius-lg);
   border-bottom-right-radius: var(--radius-lg);
   border: 1px solid var(--color-border-subtle);

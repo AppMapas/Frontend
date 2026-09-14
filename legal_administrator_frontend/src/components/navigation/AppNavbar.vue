@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watch } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 import { useRoute, RouterLink } from 'vue-router'
 import NavLink from './NavLink.vue'
 import UserProfileBadge from './UserProfileBadge.vue'
@@ -33,6 +33,17 @@ const props = defineProps({
 
 const route = useRoute()
 const isMobileMenuOpen = ref(false)
+const isDarkMode = ref(false)
+
+const applyTheme = (isDark) => {
+  isDarkMode.value = isDark
+  document.documentElement.dataset.theme = isDark ? 'dark' : 'light'
+  localStorage.setItem('legal-administrator-theme', isDark ? 'dark' : 'light')
+}
+
+const toggleTheme = () => {
+  applyTheme(!isDarkMode.value)
+}
 
 const toggleMobileMenu = () => {
   isMobileMenuOpen.value = !isMobileMenuOpen.value
@@ -45,6 +56,11 @@ const closeMobileMenu = () => {
 // Cerrar drawer automáticamente al cambiar de ruta
 watch(() => route.path, () => {
   closeMobileMenu()
+})
+
+onMounted(() => {
+  const savedTheme = localStorage.getItem('legal-administrator-theme')
+  applyTheme(savedTheme === 'dark')
 })
 </script>
 
@@ -73,6 +89,17 @@ watch(() => route.path, () => {
 
         <!-- Badge de Usuario / Administrador según navvar.png -->
         <UserProfileBadge :user-name="userName" />
+
+        <button
+          type="button"
+          class="theme-toggle"
+          :aria-label="isDarkMode ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'"
+          :aria-pressed="isDarkMode"
+          @click="toggleTheme"
+        >
+          <span class="theme-toggle-icon" aria-hidden="true">{{ isDarkMode ? '☀' : '☾' }}</span>
+          <span>{{ isDarkMode ? 'Modo claro' : 'Modo oscuro' }}</span>
+        </button>
       </nav>
 
       <!-- 3. Botón menú mobile (Hamburguesa) -->
@@ -129,6 +156,17 @@ watch(() => route.path, () => {
           <UserProfileBadge :user-name="userName" />
         </div>
 
+        <button
+          type="button"
+          class="theme-toggle theme-toggle-mobile"
+          :aria-label="isDarkMode ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'"
+          :aria-pressed="isDarkMode"
+          @click="toggleTheme"
+        >
+          <span class="theme-toggle-icon" aria-hidden="true">{{ isDarkMode ? '☀' : '☾' }}</span>
+          <span>{{ isDarkMode ? 'Modo claro' : 'Modo oscuro' }}</span>
+        </button>
+
         <nav class="drawer-nav" aria-label="Navegación móvil">
           <ul class="drawer-list">
             <li v-for="item in navItems" :key="item.path">
@@ -152,6 +190,16 @@ watch(() => route.path, () => {
 .navbar-wrapper {
   width: 100%;
   background-color: var(--color-bg-body);
+  --color-bg-body: #F4F6F6;
+  --color-bg-card: #FFFFFF;
+  --color-bg-elevated: #FFFFFF;
+  --color-bg-subtle: #F0F4F3;
+  --color-text-title: #1C2725;
+  --color-text-body: #2B3A37;
+  --color-text-muted: #5C6E6A;
+  --color-border-subtle: rgba(140, 170, 162, 0.22);
+  --color-border-medium: rgba(140, 170, 162, 0.45);
+  --color-divider: #E5EBE9;
   padding: 0.85rem 1.25rem 0 1.25rem;
   box-sizing: border-box;
   position: sticky;
@@ -266,6 +314,32 @@ watch(() => route.path, () => {
   margin: 0 0.5rem;
 }
 
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.45rem 0.65rem;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: background-color var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.theme-toggle:hover {
+  background-color: var(--color-bg-subtle);
+  color: var(--color-text-title);
+  border-color: var(--color-border-medium);
+}
+
+.theme-toggle-icon {
+  color: var(--color-teal);
+  font-size: 1rem;
+  line-height: 1;
+}
+
 /* Botón Hamburguesa Mobile */
 .mobile-toggle-btn {
   display: none;
@@ -305,13 +379,20 @@ watch(() => route.path, () => {
   right: 0;
   bottom: 0;
   width: min(85vw, 320px);
-  background-color: #FFFFFF;
+  background-color: var(--color-bg-elevated);
   box-shadow: var(--shadow-lg);
   z-index: 1060;
   display: flex;
   flex-direction: column;
   padding: 1.25rem;
   overflow-y: auto;
+}
+
+.theme-toggle-mobile {
+  width: 100%;
+  justify-content: flex-start;
+  margin-bottom: 1rem;
+  padding: 0.7rem 0.75rem;
 }
 
 .drawer-header {

@@ -180,7 +180,7 @@ onUnmounted(() => {
   top: calc(100% + 8px);
   right: 0;
   width: 230px;
-  background-color: #FFFFFF;
+  background-color: var(--color-bg-elevated);
   border: 1px solid var(--color-border-subtle);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-lg);

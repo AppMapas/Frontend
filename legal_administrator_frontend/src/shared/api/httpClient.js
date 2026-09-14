@@ -1,6 +1,6 @@
 const DEFAULT_API_URL = 'http://localhost:8080/api/v1'
 
-export const API_BASE_URL = (import.meta.env.VITE_API_URL || DEFAULT_API_URL).replace(/\/+$/, '')
+export const API_BASE_URL = (import.meta.env?.VITE_API_URL || DEFAULT_API_URL).replace(/\/+$/, '')
 
 let authHandlers = {
   getAccessToken: () => null,
@@ -39,13 +39,23 @@ function hasJsonBody(body) {
     && !(body instanceof Blob)
 }
 
-async function parseResponse(response) {
+async function parseResponse(response, responseType) {
   if (response.status === 204) return null
+
+  // Los errores se interpretan como JSON/texto incluso al descargar archivos.
+  if (response.ok && responseType === 'blob') return response.blob()
 
   const contentType = response.headers.get('content-type') || ''
 
-  if (contentType.includes('application/json')) {
-    return response.json()
+  if (contentType.includes('application/json') || contentType.includes('+json')) {
+    try {
+      return await response.json()
+    } catch (cause) {
+      throw new ApiError('El servidor devolvió una respuesta JSON inválida.', {
+        status: response.status,
+        cause,
+      })
+    }
   }
 
   const text = await response.text()
@@ -59,7 +69,7 @@ async function renewSession() {
   }
 
   if (!refreshRequest) {
-    refreshRequest = Promise.resolve(authHandlers.refreshSession())
+    refreshRequest = Promise.resolve().then(() => authHandlers.refreshSession())
       .then(() => true)
       .catch(() => {
         authHandlers.logout?.()
@@ -79,12 +89,13 @@ export async function httpClient(endpoint, options = {}) {
     headers: customHeaders,
     skipAuth = false,
     retryOnUnauthorized = true,
+    responseType,
     ...requestOptions
   } = options
   const isJsonBody = hasJsonBody(body)
   const headers = new Headers(customHeaders)
 
-  headers.set('Accept', 'application/json')
+  if (!headers.has('Accept')) headers.set('Accept', 'application/json')
 
   if (isJsonBody && !headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/json')
@@ -102,8 +113,6 @@ export async function httpClient(endpoint, options = {}) {
       headers,
       body: isJsonBody ? JSON.stringify(body) : body,
     })
-    const data = await parseResponse(response)
-
     if (response.status === 401 && !skipAuth && retryOnUnauthorized) {
       const renewed = await renewSession()
 
@@ -117,8 +126,12 @@ export async function httpClient(endpoint, options = {}) {
       authHandlers.logout?.()
     }
 
+    const data = await parseResponse(response, responseType)
+
     if (!response.ok) {
-      const message = data?.message || `La solicitud falló con estado ${response.status}`
+      const message = typeof data?.message === 'string' && data.message.trim()
+        ? data.message
+        : `La solicitud falló con estado ${response.status}`
       throw new ApiError(message, { status: response.status, data })
     }
 

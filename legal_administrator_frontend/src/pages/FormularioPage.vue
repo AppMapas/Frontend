@@ -4,9 +4,9 @@ import PageHeader from '@/components/common/PageHeader.vue'
 import BaseCard from '@/components/common/BaseCard.vue'
 import BaseButton from '@/components/common/BaseButton.vue'
 import BaseBadge from '@/components/common/BaseBadge.vue'
+import { CONVERSION_FACTORS } from '@/utils/constants'
 
-// Constante de conversión oficial de varas a metros
-const VARA_TO_M = 0.835906
+const VARA_TO_M = CONVERSION_FACTORS.VARA_TO_M
 
 // Datos del formulario
 const folioNumber = ref('452-B')
@@ -196,7 +196,7 @@ const calculateArea = () => {
 
           <div class="info-note">
             <p>
-              <strong>Factor de conversión:</strong> 1 vara = 0.835906 metros lineales. Conforme a las leyes vigentes del Registro General de la Propiedad.
+              <strong>Factor de conversión:</strong> 1 vara = {{ VARA_TO_M }} metros lineales, según el factor utilizado por el sistema.
             </p>
           </div>
 

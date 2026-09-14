@@ -17,6 +17,13 @@ src/
 │       ├── services/        # Contrato HTTP de autenticación
 │       ├── stores/          # Estado de sesión en Pinia
 │       └── routes.js
+│   └── terrenos/            # Editor Vue, geometría, contrato y estado del borrador
+│       ├── components/
+│       ├── domain/
+│       ├── pages/
+│       ├── services/
+│       ├── stores/
+│       └── routes.js
 ├── shared/                 # Código reutilizado por varios módulos
 │   └── api/httpClient.js
 ├── components/             # Componentes existentes pendientes de migrar
@@ -34,6 +41,9 @@ src/
 - Las variables de entorno se leen en la capa de configuración o infraestructura; los componentes no construyen URLs del backend.
 
 ## API
+
+El editor de terrenos y sus límites de integración se describen en
+[`modules/terrenos/README.md`](modules/terrenos/README.md).
 
 `shared/api/httpClient.js` utiliza `VITE_API_URL`. En desarrollo, el valor predeterminado es `http://localhost:8080/api/v1`.
 
