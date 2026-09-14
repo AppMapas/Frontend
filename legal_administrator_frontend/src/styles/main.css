@@ -19,6 +19,7 @@ html {
   color: var(--color-text-body);
   background-color: var(--color-bg-body);
   scroll-behavior: smooth;
+  transition: background-color var(--transition-normal), color var(--transition-normal);
 }
 
 body {
@@ -28,6 +29,7 @@ body {
   background-color: var(--color-bg-body);
   color: var(--color-text-body);
   overflow-x: hidden;
+  transition: background-color var(--transition-normal), color var(--transition-normal);
 }
 
 #app {
@@ -79,7 +81,7 @@ input, select, textarea {
   font-family: inherit;
   font-size: 0.875rem;
   color: var(--color-text-body);
-  background-color: #FFFFFF;
+  background-color: var(--color-bg-card);
   border: 1px solid var(--color-border-subtle);
   border-radius: var(--radius-sm);
   padding: 0.5rem 0.75rem;

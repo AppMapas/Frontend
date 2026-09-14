@@ -2,13 +2,13 @@
  * Constantes oficiales del sistema LegalAdministrator
  */
 
-// Factor oficial de conversión legal en Guatemala: 1 vara = 0.835906 metros lineales
+// Factor utilizado por UnitConversion.java en el backend.
+const VARA_TO_M = 0.836
 export const CONVERSION_FACTORS = {
-  VARA_TO_M: 0.835906,
-  M_TO_VARA: 1 / 0.835906,
-  // 1 vara² = 0.835906 * 0.835906 m² = 0.69873884 m²
-  VARA2_TO_M2: 0.69873884,
-  M2_TO_VARA2: 1 / 0.69873884,
+  VARA_TO_M,
+  M_TO_VARA: 1 / VARA_TO_M,
+  VARA2_TO_M2: VARA_TO_M ** 2,
+  M2_TO_VARA2: 1 / (VARA_TO_M ** 2),
   CUERDA_STANDARD_VARAS: 441 // 21 x 21 varas
 }
 

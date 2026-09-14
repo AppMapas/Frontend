@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watch } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 import { useRoute, RouterLink } from 'vue-router'
 import NavLink from './NavLink.vue'
 import UserProfileBadge from './UserProfileBadge.vue'
@@ -33,6 +33,18 @@ const props = defineProps({
 
 const route = useRoute()
 const isMobileMenuOpen = ref(false)
+const isDarkMode = ref(false)
+
+const applyTheme = (isDark) => {
+  isDarkMode.value = isDark
+  document.documentElement.dataset.theme = isDark ? 'dark' : 'light'
+  localStorage.setItem('legal-administrator-theme', isDark ? 'dark' : 'light')
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', isDark ? '#15211F' : '#F4F6F6')
+}
+
+const toggleTheme = () => {
+  applyTheme(!isDarkMode.value)
+}
 
 const toggleMobileMenu = () => {
   isMobileMenuOpen.value = !isMobileMenuOpen.value
@@ -45,6 +57,11 @@ const closeMobileMenu = () => {
 // Cerrar drawer automáticamente al cambiar de ruta
 watch(() => route.path, () => {
   closeMobileMenu()
+})
+
+onMounted(() => {
+  const savedTheme = localStorage.getItem('legal-administrator-theme')
+  applyTheme(savedTheme === 'dark')
 })
 </script>
 
@@ -73,6 +90,17 @@ watch(() => route.path, () => {
 
         <!-- Badge de Usuario / Administrador según navvar.png -->
         <UserProfileBadge :user-name="userName" />
+
+        <button
+          type="button"
+          class="theme-toggle"
+          :aria-label="isDarkMode ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'"
+          :aria-pressed="isDarkMode"
+          @click="toggleTheme"
+        >
+          <span class="theme-toggle-icon" aria-hidden="true">{{ isDarkMode ? '☀' : '☾' }}</span>
+          <span>{{ isDarkMode ? 'Modo claro' : 'Modo oscuro' }}</span>
+        </button>
       </nav>
 
       <!-- 3. Botón menú mobile (Hamburguesa) -->
@@ -129,6 +157,17 @@ watch(() => route.path, () => {
           <UserProfileBadge :user-name="userName" />
         </div>
 
+        <button
+          type="button"
+          class="theme-toggle theme-toggle-mobile"
+          :aria-label="isDarkMode ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'"
+          :aria-pressed="isDarkMode"
+          @click="toggleTheme"
+        >
+          <span class="theme-toggle-icon" aria-hidden="true">{{ isDarkMode ? '☀' : '☾' }}</span>
+          <span>{{ isDarkMode ? 'Modo claro' : 'Modo oscuro' }}</span>
+        </button>
+
         <nav class="drawer-nav" aria-label="Navegación móvil">
           <ul class="drawer-list">
             <li v-for="item in navItems" :key="item.path">
@@ -164,7 +203,7 @@ watch(() => route.path, () => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background-color: #FFFFFF;
+  background-color: var(--color-bg-card);
   border-top-left-radius: var(--radius-lg);
   border-top-right-radius: var(--radius-lg);
   box-shadow: var(--shadow-navbar);
@@ -172,7 +211,6 @@ watch(() => route.path, () => {
   border-bottom: none;
   padding: 0.75rem 1.75rem;
   min-height: 64px;
-  overflow: hidden;
 }
 
 /* Línea superior que integra armónicamente la paleta oficial de docs/ui.md */
@@ -183,6 +221,8 @@ watch(() => route.path, () => {
   left: 0;
   right: 0;
   height: 3px;
+  border-top-left-radius: var(--radius-lg);
+  border-top-right-radius: var(--radius-lg);
   background: linear-gradient(90deg, var(--color-coral) 0%, var(--color-soft-coral) 28%, var(--color-sage) 52%, var(--color-teal) 76%, var(--color-deep-teal) 100%);
 }
 
@@ -222,7 +262,7 @@ watch(() => route.path, () => {
   padding: 0.2rem 0.6rem;
   border-radius: var(--radius-full);
   background: rgba(90, 155, 149, 0.12);
-  color: var(--color-deep-teal);
+  color: var(--color-teal-strong);
   border: 1px solid rgba(90, 155, 149, 0.35);
   letter-spacing: 0.02em;
 }
@@ -266,6 +306,32 @@ watch(() => route.path, () => {
   margin: 0 0.5rem;
 }
 
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.45rem 0.65rem;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: background-color var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.theme-toggle:hover {
+  background-color: var(--color-bg-subtle);
+  color: var(--color-text-title);
+  border-color: var(--color-border-medium);
+}
+
+.theme-toggle-icon {
+  color: var(--color-teal);
+  font-size: 1rem;
+  line-height: 1;
+}
+
 /* Botón Hamburguesa Mobile */
 .mobile-toggle-btn {
   display: none;
@@ -305,13 +371,20 @@ watch(() => route.path, () => {
   right: 0;
   bottom: 0;
   width: min(85vw, 320px);
-  background-color: #FFFFFF;
+  background-color: var(--color-bg-elevated);
   box-shadow: var(--shadow-lg);
   z-index: 1060;
   display: flex;
   flex-direction: column;
   padding: 1.25rem;
   overflow-y: auto;
+}
+
+.theme-toggle-mobile {
+  width: 100%;
+  justify-content: flex-start;
+  margin-bottom: 1rem;
+  padding: 0.7rem 0.75rem;
 }
 
 .drawer-header {

@@ -4,6 +4,10 @@ import BaseCard from '@/components/common/BaseCard.vue'
 import BaseButton from '@/components/common/BaseButton.vue'
 import BaseBadge from '@/components/common/BaseBadge.vue'
 import IconUser from '@/assets/icons/IconUser.vue'
+import { useAuthStore } from '@/modules/auth/stores/authStore'
+import TwoFactorSettings from '@/modules/auth/components/two-factor/TwoFactorSettings.vue'
+
+const authStore = useAuthStore()
 </script>
 
 <template>
@@ -22,8 +26,8 @@ import IconUser from '@/assets/icons/IconUser.vue'
             <IconUser :size="42" color="#FFFFFF" />
           </div>
           <div class="profile-title-info">
-            <h2>Administrador General</h2>
-            <p class="role-tag">Super Administrador del Sistema</p>
+            <h2>{{ authStore.user?.name || 'Usuario' }}</h2>
+            <p class="role-tag">{{ authStore.user?.role || 'Sin rol asignado' }}</p>
             <BaseBadge variant="coral">Sesión Activa</BaseBadge>
           </div>
         </div>
@@ -31,7 +35,7 @@ import IconUser from '@/assets/icons/IconUser.vue'
         <div class="profile-details-list">
           <div class="detail-item">
             <span class="detail-name">Correo Electrónico:</span>
-            <span class="detail-value">admin@legaladministrator.com</span>
+            <span class="detail-value">{{ authStore.user?.email || 'No disponible' }}</span>
           </div>
           <div class="detail-item">
             <span class="detail-name">Entorno:</span>
@@ -81,6 +85,8 @@ import IconUser from '@/assets/icons/IconUser.vue'
           </div>
         </div>
       </BaseCard>
+
+      <TwoFactorSettings />
     </div>
   </div>
 </template>

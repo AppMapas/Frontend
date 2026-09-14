@@ -156,7 +156,7 @@ defineEmits(['click'])
 
 .btn-soft:hover:not(:disabled) {
   background-color: var(--color-soft-coral);
-  color: #FFFFFF;
+  color: var(--color-text-on-primary);
 }
 
 .btn-spinner {

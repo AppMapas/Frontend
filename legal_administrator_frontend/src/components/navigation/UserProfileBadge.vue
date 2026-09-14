@@ -1,6 +1,7 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { useAuthStore } from '@/modules/auth/stores/authStore'
 import IconUser from '@/assets/icons/IconUser.vue'
 import IconChevronDown from '@/assets/icons/IconChevronDown.vue'
 
@@ -24,6 +25,7 @@ const props = defineProps({
 })
 
 const router = useRouter()
+const authStore = useAuthStore()
 const isOpen = ref(false)
 const dropdownRef = ref(null)
 
@@ -38,6 +40,12 @@ const closeDropdown = () => {
 const goToProfile = () => {
   closeDropdown()
   router.push('/perfil')
+}
+
+const handleLogout = () => {
+  closeDropdown()
+  authStore.logout()
+  router.replace({ name: 'login' })
 }
 
 // Cerrar al hacer clic fuera
@@ -101,7 +109,7 @@ onUnmounted(() => {
           type="button"
           class="user-menu-item item-danger"
           role="menuitem"
-          @click="closeDropdown"
+          @click="handleLogout"
         >
           <span>Cerrar sesión</span>
         </button>
@@ -172,12 +180,12 @@ onUnmounted(() => {
   top: calc(100% + 8px);
   right: 0;
   width: 230px;
-  background-color: #FFFFFF;
+  background-color: var(--color-bg-elevated);
   border: 1px solid var(--color-border-subtle);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-lg);
   padding: 0.5rem;
-  z-index: 100;
+  z-index: 200;
 }
 
 .user-info-header {

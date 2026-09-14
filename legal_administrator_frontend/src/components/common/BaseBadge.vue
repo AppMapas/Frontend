@@ -44,31 +44,31 @@ defineProps({
 
 .badge-coral {
   background-color: var(--color-primary-subtle);
-  color: var(--color-coral);
+  color: var(--color-coral-strong);
   border: 1px solid rgba(255, 133, 145, 0.35);
 }
 
 .badge-soft-coral {
   background-color: var(--color-accent-soft-bg);
-  color: #B54E59;
+  color: var(--color-coral-strong);
   border: 1px solid rgba(239, 170, 163, 0.45);
 }
 
 .badge-sage {
   background-color: rgba(140, 170, 162, 0.18);
-  color: #435E58;
+  color: var(--color-sage-strong);
   border: 1px solid rgba(140, 170, 162, 0.4);
 }
 
 .badge-teal {
   background-color: rgba(90, 155, 149, 0.15);
-  color: var(--color-deep-teal);
+  color: var(--color-teal-strong);
   border: 1px solid rgba(90, 155, 149, 0.35);
 }
 
 .badge-deep-teal {
   background-color: rgba(68, 135, 143, 0.15);
-  color: var(--color-deep-teal);
+  color: var(--color-teal-strong);
   border: 1px solid rgba(68, 135, 143, 0.35);
 }
 

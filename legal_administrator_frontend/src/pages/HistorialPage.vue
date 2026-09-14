@@ -226,12 +226,12 @@ const filteredRecords = computed(() => {
 
 .filter-btn:hover {
   color: var(--color-text-title);
-  background-color: #E6EAE8;
+  background-color: var(--color-bg-subtle);
 }
 
 .filter-btn.is-active {
   background-color: var(--color-teal);
-  color: #FFFFFF;
+  color: var(--color-text-on-primary);
 }
 
 .table-container {

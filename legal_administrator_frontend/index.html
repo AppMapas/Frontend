@@ -10,6 +10,15 @@
   </head>
   <body>
     <div id="app"></div>
+    <script>
+      (function () {
+        try {
+          var theme = localStorage.getItem('legal-administrator-theme')
+          if (theme === 'dark') document.documentElement.dataset.theme = 'dark'
+          else document.documentElement.dataset.theme = 'light'
+        } catch (e) {}
+      })()
+    </script>
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>

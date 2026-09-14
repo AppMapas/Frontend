@@ -13,6 +13,18 @@
   --color-teal: #5A9B95;         /* rgb(90, 155, 149)  - Interactivos secundarios, enlaces, botones sec. */
   --color-deep-teal: #44878F;    /* rgb(68, 135, 143)  - Mayor contraste, encabezados, estados activos */
 
+  /* Texto de acento con buen contraste sobre superficies tintadas de la paleta */
+  --color-coral-strong: var(--color-coral);
+  --color-teal-strong: var(--color-deep-teal);
+  --color-sage-strong: #435E58;
+
+  /* Texto fuerte para estados y feedback */
+  --color-success-strong: #367454;
+  --color-warning-strong: #7D5822;
+  --color-danger-strong: #8E454C;
+
+  color-scheme: light;
+
   /* ==========================================================================
      2. ALIAS SEMÁNTICOS Y JERARQUÍA
      ========================================================================== */
@@ -90,4 +102,47 @@
   --transition-fast: 0.15s cubic-bezier(0.4, 0, 0.2, 1);
   --transition-normal: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   --transition-slow: 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+[data-theme='dark'] {
+   /* Carbón con matiz teal: aporta profundidad sin abandonar la paleta oficial. */
+   color-scheme: dark;
+
+   --color-bg-body: #15211F;
+   --color-bg-card: #1C2A27;
+   --color-bg-elevated: #243530;
+   --color-bg-subtle: #2A3C37;
+
+   --color-text-title: #F2F7F5;
+   --color-text-body: #DCE9E5;
+   --color-text-muted: #A6B9B3;
+   --color-text-subtle: var(--color-sage);
+   --color-text-on-primary: #14201E;
+
+   /* Acentos más luminosos para garantizar contraste sobre fondo oscuro */
+   --color-coral-strong: #FF9AA4;
+   --color-teal-strong: #8FD2CA;
+   --color-sage-strong: #A9C7BE;
+
+   --color-success-strong: #70C492;
+   --color-warning-strong: #E3B46A;
+   --color-danger-strong: #F09792;
+
+   --color-success: #55A87C;
+   --color-warning: #E5A84E;
+   --color-danger: #E06B67;
+   --color-info: #5CA7AF;
+
+   --color-primary-subtle: rgba(255, 133, 145, 0.16);
+   --color-primary-glow: rgba(255, 133, 145, 0.30);
+   --color-accent-soft-bg: rgba(239, 170, 163, 0.16);
+   --color-border-subtle: rgba(140, 170, 162, 0.24);
+   --color-border-medium: rgba(140, 170, 162, 0.50);
+   --color-border-focus: var(--color-teal);
+   --color-divider: rgba(140, 170, 162, 0.26);
+
+   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.24), 0 1px 2px rgba(0, 0, 0, 0.16);
+   --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.28), 0 2px 4px rgba(0, 0, 0, 0.18);
+   --shadow-lg: 0 12px 24px -4px rgba(0, 0, 0, 0.38), 0 4px 8px -2px rgba(0, 0, 0, 0.24);
+   --shadow-navbar: 0 4px 20px -2px rgba(0, 0, 0, 0.3), 0 1px 3px rgba(0, 0, 0, 0.2);
 }

@@ -203,5 +203,5 @@ const filteredClients = computed(() => {
 
 .font-mono { font-family: var(--font-mono); }
 .font-bold { font-weight: 700; }
-.text-teal { color: var(--color-deep-teal); }
+.text-teal { color: var(--color-teal-strong); }
 </style>
