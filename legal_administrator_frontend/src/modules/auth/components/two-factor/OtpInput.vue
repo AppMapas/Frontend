@@ -18,6 +18,10 @@ const props = defineProps({
     type: String,
     default: 'otp',
   },
+  autofocus: {
+    type: Boolean,
+    default: false,
+  },
 })
 
 const emit = defineEmits(['update:modelValue', 'complete'])
@@ -102,6 +106,7 @@ const handlePaste = (event) => {
       pattern="[0-9]*"
       maxlength="1"
       autocomplete="one-time-code"
+      :autofocus="autofocus && index === 0"
       :aria-label="`Dígito ${index + 1} de 6`"
       :aria-invalid="invalid"
       :disabled="disabled"

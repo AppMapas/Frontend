@@ -65,14 +65,15 @@ const returnToLogin = async () => {
 </template>
 
 <style scoped>
-.two-factor-page { width: min(100%, 29rem); padding: 2.25rem 0; }
+.two-factor-page { width: min(100%, 29rem); min-width: 0; padding: clamp(1.75rem, 5vh, 2.75rem) 0; }
 header { margin-bottom: 1.4rem; text-align: center; }
 .auth-icon { display: grid; width: 3.25rem; height: 3.25rem; margin: 0 auto 1.25rem; place-items: center; border-radius: .85rem .85rem .85rem .2rem; color: #fff; background: #44878f; box-shadow: 6px 6px 0 rgba(255,133,145,.28); }
 .auth-icon svg { width: 1.4rem; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.7; }
 header p { margin: 0 0 .55rem; color: #ff8591; font-size: .65rem; font-weight: 700; letter-spacing: .17em; text-transform: uppercase; }
-header h2 { margin: 0 0 .65rem; color: #173f46; font-family: Georgia, serif; font-size: 2.1rem; letter-spacing: -.035em; }
-header > span:last-child { display: block; max-width: 25rem; margin: 0 auto; color: #718789; font-size: .76rem; line-height: 1.6; }
+header h2 { margin: 0 0 .65rem; color: var(--color-text-primary, #1A2332); font-family: Georgia, serif; font-size: clamp(1.8rem, 6vw, 2.1rem); letter-spacing: -.035em; }
+header > span:last-child { display: block; max-width: 25rem; margin: 0 auto; color: var(--color-text-secondary, #5A6B7A); font-size: .76rem; line-height: 1.6; }
 .account-hint { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.35rem; border: 1px solid rgba(68,135,143,.15); padding: .75rem .9rem; background: rgba(140,170,162,.08); font-size: .68rem; }
 .account-hint span { color: #7f9293; }.account-hint strong { overflow: hidden; max-width: 70%; color: #44878f; text-overflow: ellipsis; white-space: nowrap; }
 .back-to-login { display: flex; align-items: center; gap: .45rem; margin: 1.5rem auto 0; border: 0; color: #627b7e; background: transparent; font-size: .7rem; font-weight: 600; cursor: pointer; }.back-to-login span { color: #ff8591; font-size: .95rem; }
+@media (max-width: 380px) { header { margin-bottom: 1.2rem; }.auth-icon { margin-bottom: .9rem; }.account-hint { align-items: flex-start; flex-direction: column; gap: .25rem; }.account-hint strong { max-width: 100%; } }
 </style>

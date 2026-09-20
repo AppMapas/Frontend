@@ -79,9 +79,10 @@ export const useAuthStore = defineStore('auth', {
         throw new Error('No existe una verificación en dos pasos pendiente.')
       }
 
+      const normalizedCode = validateTwoFactorCode(code)
       const response = await authApi.verifyTwoFactor({
         email: this.pendingEmail,
-        code,
+        code: normalizedCode,
       })
 
       this.setSession(response, true)
@@ -104,13 +105,19 @@ export const useAuthStore = defineStore('auth', {
     },
 
     async beginTwoFactorSetup() {
+      if (!this.user?.email) {
+        const error = new Error('No fue posible identificar la cuenta para configurar 2FA.')
+        this.twoFactorError = error.message
+        throw error
+      }
+
       const requestId = ++twoFactorSetupRequestId
       this.twoFactorSetup = null
       this.twoFactorError = null
       this.isTwoFactorLoading = true
 
       try {
-        const response = await authApi.setupTwoFactor()
+        const response = await authApi.setupTwoFactor(this.user.email)
 
         if (requestId !== twoFactorSetupRequestId) return null
 
@@ -143,7 +150,7 @@ export const useAuthStore = defineStore('auth', {
 
       try {
         const normalizedCode = validateTwoFactorCode(code)
-        const response = await authApi.enableTwoFactor(normalizedCode)
+        const response = await authApi.enableTwoFactor(normalizedCode, this.user?.email)
 
         this.twoFactorEnabled = getTwoFactorStatus(response, true)
         this.twoFactorSetup = null
@@ -163,7 +170,7 @@ export const useAuthStore = defineStore('auth', {
 
       try {
         const normalizedCode = validateTwoFactorCode(code)
-        const response = await authApi.disableTwoFactor(normalizedCode)
+        const response = await authApi.disableTwoFactor(normalizedCode, this.user?.email)
 
         this.twoFactorEnabled = getTwoFactorStatus(response, false)
         this.twoFactorSetup = null

@@ -59,12 +59,13 @@ const handleLogin = async (credentials) => {
 </template>
 
 <style scoped>
-.login-page { width: min(100%, 28rem); padding: 2.25rem 0; }
+.login-page { width: min(100%, 28rem); min-width: 0; padding: clamp(1.75rem, 5vh, 2.75rem) 0; }
 header { margin-bottom: 2rem; text-align: center; }
 .auth-icon { display: grid; width: 3.25rem; height: 3.25rem; margin: 0 auto 1.25rem; place-items: center; border-radius: .85rem .85rem .85rem .2rem; color: #fff; background: #44878f; box-shadow: 6px 6px 0 rgba(255,133,145,.28); }
 .auth-icon svg { width: 1.4rem; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.7; }
 header p { margin: 0 0 .55rem; color: #ff8591; font-size: .65rem; font-weight: 700; letter-spacing: .17em; text-transform: uppercase; }
-header h2 { margin: 0 0 .65rem; color: #173f46; font-family: Georgia, serif; font-size: 2.25rem; letter-spacing: -.035em; }
-header > span:last-child { color: #718789; font-size: .78rem; }
+header h2 { margin: 0 0 .65rem; color: var(--color-text-primary, #1A2332); font-family: Georgia, serif; font-size: clamp(1.9rem, 6vw, 2.25rem); letter-spacing: -.035em; }
+header > span:last-child { display: block; color: var(--color-text-secondary, #5A6B7A); font-size: .78rem; line-height: 1.55; }
 .support-copy { margin: 1.6rem 0 0; color: #829496; font-size: .7rem; text-align: center; }
+@media (max-width: 380px) { header { margin-bottom: 1.5rem; }.auth-icon { margin-bottom: .9rem; }.support-copy { margin-top: 1.25rem; } }
 </style>
