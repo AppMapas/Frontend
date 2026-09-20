@@ -368,10 +368,16 @@ function exportPng() {
   draw()
   const link = document.createElement('a')
   link.download = 'plano_terreno.png'
-  link.href = canvas.value.toDataURL('image/png')
+  link.href = toDataUrl()
   link.click()
 }
-defineExpose({ exportPng, fit, zoomIn, zoomOut, panLeft, panRight, panUp, panDown })
+function toDataUrl() {
+  if (!props.calculated || !canvas.value) return ''
+  preview.value = null
+  draw()
+  return canvas.value.toDataURL('image/png')
+}
+defineExpose({ exportPng, toDataUrl, fit, zoomIn, zoomOut, panLeft, panRight, panUp, panDown })
 
 watch(() => [props.vertices, props.closed, props.calculated], (_, previous) => {
   preview.value = null
