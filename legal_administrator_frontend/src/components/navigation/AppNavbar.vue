@@ -213,7 +213,7 @@ onMounted(() => {
   min-height: 64px;
 }
 
-/* Línea superior que integra armónicamente la paleta oficial de docs/ui.md */
+/* Línea superior de identidad teal. */
 .navbar-inner::before {
   content: '';
   position: absolute;
@@ -223,7 +223,7 @@ onMounted(() => {
   height: 3px;
   border-top-left-radius: var(--radius-lg);
   border-top-right-radius: var(--radius-lg);
-  background: linear-gradient(90deg, var(--color-coral) 0%, var(--color-soft-coral) 28%, var(--color-sage) 52%, var(--color-teal) 76%, var(--color-deep-teal) 100%);
+  background: linear-gradient(90deg, var(--color-coral-decorative) 0%, var(--color-deep-teal) 24%, var(--color-sage) 55%, var(--color-teal) 78%, var(--color-teal-dark) 100%);
 }
 
 /* Marca / Logo */
@@ -241,17 +241,17 @@ onMounted(() => {
   border-radius: var(--radius-sm);
 }
 
-/* Badge con ícono rosado/coral con degradado y sombra de acento */
+/* Badge de marca con degradado teal y contraste alto. */
 .brand-badge-icon {
   display: flex;
   align-items: center;
   justify-content: center;
   width: 36px;
   height: 36px;
-  background: linear-gradient(135deg, var(--color-coral) 0%, #fa6273 100%);
+  background: linear-gradient(135deg, var(--color-deep-teal) 0%, var(--color-teal-darker) 100%);
   color: #FFFFFF;
   border-radius: var(--radius-sm);
-  box-shadow: 0 3px 8px rgba(255, 133, 145, 0.40);
+  box-shadow: 0 3px 8px rgba(50, 107, 114, 0.32);
   flex-shrink: 0;
 }
 

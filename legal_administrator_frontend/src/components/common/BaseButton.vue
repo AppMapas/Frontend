@@ -58,7 +58,7 @@ defineEmits(['click'])
   border-radius: var(--radius-sm);
   border: 1px solid transparent;
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), box-shadow var(--transition-fast), transform var(--transition-fast);
   white-space: nowrap;
   user-select: none;
 }
@@ -69,7 +69,7 @@ defineEmits(['click'])
 }
 
 .base-button:disabled {
-  opacity: 0.55;
+  opacity: 0.52;
   cursor: not-allowed;
   pointer-events: none;
 }
@@ -97,16 +97,16 @@ defineEmits(['click'])
   width: 100%;
 }
 
-/* Variantes según docs/ui.md */
+/* CTA principal: teal oscuro para sostener texto blanco con alto contraste. */
 .btn-primary {
-  background-color: var(--color-coral);
-  color: #FFFFFF;
-  box-shadow: 0 2px 4px rgba(255, 133, 145, 0.25);
+  background-color: var(--color-primary);
+  color: var(--color-text-on-primary);
+  box-shadow: 0 2px 5px var(--color-primary-glow);
 }
 
 .btn-primary:hover:not(:disabled) {
   background-color: var(--color-primary-hover);
-  box-shadow: 0 4px 10px rgba(255, 133, 145, 0.35);
+  box-shadow: 0 5px 14px var(--color-primary-glow);
   transform: translateY(-1px);
 }
 
@@ -116,13 +116,14 @@ defineEmits(['click'])
 }
 
 .btn-secondary {
-  background-color: var(--color-teal);
-  color: #FFFFFF;
+  background-color: var(--color-secondary);
+  color: var(--color-text-on-secondary);
+  border-color: rgba(16, 43, 45, 0.14);
 }
 
 .btn-secondary:hover:not(:disabled) {
-  background-color: var(--color-deep-teal);
-  box-shadow: 0 4px 10px rgba(90, 155, 149, 0.25);
+  background-color: var(--color-secondary-hover);
+  box-shadow: 0 4px 10px rgba(68, 135, 143, 0.22);
   transform: translateY(-1px);
 }
 
@@ -133,9 +134,9 @@ defineEmits(['click'])
 }
 
 .btn-outline:hover:not(:disabled) {
-  border-color: var(--color-teal);
-  color: var(--color-teal);
-  background-color: rgba(90, 155, 149, 0.05);
+  border-color: var(--color-teal-strong);
+  color: var(--color-teal-strong);
+  background-color: var(--color-primary-subtle);
 }
 
 .btn-ghost {
@@ -150,13 +151,18 @@ defineEmits(['click'])
 
 .btn-soft {
   background-color: var(--color-accent-soft-bg);
-  color: var(--color-text-title);
-  border-color: rgba(239, 170, 163, 0.4);
+  color: var(--color-teal-strong);
+  border-color: var(--color-border-medium);
 }
 
 .btn-soft:hover:not(:disabled) {
-  background-color: var(--color-soft-coral);
-  color: var(--color-text-on-primary);
+  background-color: var(--color-teal-soft);
+  color: var(--color-teal-darker);
+}
+
+:global([data-theme='dark']) .btn-soft:hover:not(:disabled) {
+  background-color: var(--color-bg-elevated);
+  color: var(--color-teal-strong);
 }
 
 .btn-spinner {

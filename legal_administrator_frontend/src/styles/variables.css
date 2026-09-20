@@ -5,17 +5,28 @@
 
 :root {
   /* ==========================================================================
-     1. PALETA OFICIAL (docs/ui.md)
+     1. PALETA TEAL
      ========================================================================== */
-  --color-coral: #FF8591;        /* rgb(255, 133, 145) - Acento principal, CTA, destacados, activos */
-  --color-soft-coral: #EFAAA3;   /* rgb(239, 170, 163) - Acento secundario, fondos suaves, badges, hover */
-  --color-sage: #8CAAA2;         /* rgb(140, 170, 162) - Elementos secundarios, superficies, iconos */
-  --color-teal: #5A9B95;         /* rgb(90, 155, 149)  - Interactivos secundarios, enlaces, botones sec. */
-  --color-deep-teal: #44878F;    /* rgb(68, 135, 143)  - Mayor contraste, encabezados, estados activos */
+  --color-sage: #8CAAA2;
+  --color-teal: #5A9B95;
+  --color-deep-teal: #44878F;
+  --color-teal-dark: #326B72;
+  --color-teal-darker: #25565D;
+  --color-teal-soft: #DDECE9;
+  --color-coral-decorative: #D97873;
+  --color-coral-decorative-strong: #9B4D49;
+  --color-coral-decorative-soft: rgba(217, 120, 115, 0.14);
+  --color-coral-decorative-pale: #F8E4E1;
+  --color-coral-decorative-mid: #E9A09A;
+  --color-coral-decorative-glow: rgba(217, 120, 115, 0.24);
+
+  /* Alias heredados: se conservan para componentes antiguos, sin renderizar coral. */
+  --color-coral: var(--color-teal-dark);
+  --color-soft-coral: #B9D4D0;
 
   /* Texto de acento con buen contraste sobre superficies tintadas de la paleta */
-  --color-coral-strong: var(--color-coral);
-  --color-teal-strong: var(--color-deep-teal);
+  --color-coral-strong: var(--color-teal-dark);
+  --color-teal-strong: var(--color-teal-dark);
   --color-sage-strong: #435E58;
 
   /* Texto fuerte para estados y feedback */
@@ -28,36 +39,47 @@
   /* ==========================================================================
      2. ALIAS SEMÁNTICOS Y JERARQUÍA
      ========================================================================== */
-  --color-primary: var(--color-coral);
-  --color-primary-hover: #fa6c7b;
-  --color-primary-active: #e85868;
-  --color-primary-subtle: rgba(255, 133, 145, 0.12);
-  --color-primary-glow: rgba(255, 133, 145, 0.25);
+  --color-primary: var(--color-teal-dark);
+  --color-primary-hover: var(--color-teal-darker);
+  --color-primary-active: #1D464C;
+  --color-primary-subtle: rgba(68, 135, 143, 0.11);
+  --color-primary-glow: rgba(68, 135, 143, 0.24);
 
   --color-secondary: var(--color-teal);
   --color-secondary-hover: var(--color-deep-teal);
 
-  --color-accent-soft: var(--color-soft-coral);
-  --color-accent-soft-bg: rgba(239, 170, 163, 0.15);
+  --color-accent-soft: var(--color-teal-soft);
+  --color-accent-soft-bg: rgba(90, 155, 149, 0.11);
 
   /* Superficies & Fondos */
-  --color-bg-body: #F4F6F6;
+  --color-bg-body: #F2F6F5;
   --color-bg-card: #FFFFFF;
   --color-bg-elevated: #FFFFFF;
-  --color-bg-subtle: #F0F4F3;
+  --color-bg-subtle: #EEF4F2;
+  --color-bg-workspace: #E7F0EE;
+  --color-canvas-bg: #F6FAF9;
 
   /* Textos */
-  --color-text-title: #1C2725;
-  --color-text-body: #2B3A37;
-  --color-text-muted: #5C6E6A;
+  --color-text-title: #173033;
+  --color-text-body: #293F3E;
+  --color-text-muted: #566B69;
   --color-text-subtle: var(--color-sage);
   --color-text-on-primary: #FFFFFF;
+  --color-text-on-secondary: #102B2D;
 
   /* Bordes & Separadores */
   --color-border-subtle: rgba(140, 170, 162, 0.22);
   --color-border-medium: rgba(140, 170, 162, 0.45);
   --color-border-focus: var(--color-teal);
   --color-divider: #E5EBE9;
+
+  /* Plano y selección */
+  --color-plan-line: #326B72;
+  --color-plan-fill: rgba(68, 135, 143, 0.12);
+  --color-selection: #1F5961;
+  --color-region-a: rgba(90, 155, 149, 0.34);
+  --color-region-b: rgba(140, 170, 162, 0.42);
+  --color-region-c: rgba(68, 135, 143, 0.25);
 
   /* Estados y feedback */
   --color-success: #4E9F76;
@@ -105,23 +127,38 @@
 }
 
 [data-theme='dark'] {
-   /* Carbón con matiz teal: aporta profundidad sin abandonar la paleta oficial. */
+   /* Slate profundo con elevación teal contenida. */
    color-scheme: dark;
 
-   --color-bg-body: #15211F;
-   --color-bg-card: #1C2A27;
-   --color-bg-elevated: #243530;
-   --color-bg-subtle: #2A3C37;
+   --color-bg-body: #0F1719;
+   --color-bg-card: #151F22;
+   --color-bg-elevated: #1C292C;
+   --color-bg-subtle: #223235;
+   --color-bg-workspace: #111C1E;
+   --color-canvas-bg: #172326;
 
-   --color-text-title: #F2F7F5;
-   --color-text-body: #DCE9E5;
-   --color-text-muted: #A6B9B3;
+   --color-text-title: #F1F7F6;
+   --color-text-body: #D7E5E2;
+   --color-text-muted: #A9BCB8;
    --color-text-subtle: var(--color-sage);
-   --color-text-on-primary: #14201E;
+   --color-text-on-primary: #FFFFFF;
+   --color-text-on-secondary: #0C2426;
 
-   /* Acentos más luminosos para garantizar contraste sobre fondo oscuro */
-   --color-coral-strong: #FF9AA4;
-   --color-teal-strong: #8FD2CA;
+   --color-primary: #39747B;
+   --color-primary-hover: #32666D;
+   --color-primary-active: #2A585E;
+   --color-secondary: #69AAA4;
+   --color-secondary-hover: #78B8B2;
+   --color-coral-decorative: #E29A94;
+   --color-coral-decorative-strong: #F0B7B2;
+   --color-coral-decorative-soft: rgba(226, 154, 148, 0.13);
+   --color-coral-decorative-pale: #322527;
+   --color-coral-decorative-mid: #C97873;
+   --color-coral-decorative-glow: rgba(226, 154, 148, 0.22);
+   --color-coral: var(--color-primary);
+   --color-soft-coral: #456E6B;
+   --color-coral-strong: #8BC7C1;
+   --color-teal-strong: #8BC7C1;
    --color-sage-strong: #A9C7BE;
 
    --color-success-strong: #70C492;
@@ -133,13 +170,20 @@
    --color-danger: #E06B67;
    --color-info: #5CA7AF;
 
-   --color-primary-subtle: rgba(255, 133, 145, 0.16);
-   --color-primary-glow: rgba(255, 133, 145, 0.30);
-   --color-accent-soft-bg: rgba(239, 170, 163, 0.16);
-   --color-border-subtle: rgba(140, 170, 162, 0.24);
-   --color-border-medium: rgba(140, 170, 162, 0.50);
-   --color-border-focus: var(--color-teal);
+   --color-primary-subtle: rgba(90, 155, 149, 0.16);
+   --color-primary-glow: rgba(90, 155, 149, 0.24);
+   --color-accent-soft-bg: rgba(90, 155, 149, 0.14);
+   --color-border-subtle: rgba(140, 170, 162, 0.20);
+   --color-border-medium: rgba(140, 170, 162, 0.42);
+   --color-border-focus: #78B8B2;
    --color-divider: rgba(140, 170, 162, 0.26);
+
+   --color-plan-line: #8BC7C1;
+   --color-plan-fill: rgba(90, 155, 149, 0.16);
+   --color-selection: #A8D8D3;
+   --color-region-a: rgba(90, 155, 149, 0.32);
+   --color-region-b: rgba(140, 170, 162, 0.30);
+   --color-region-c: rgba(68, 135, 143, 0.34);
 
    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.24), 0 1px 2px rgba(0, 0, 0, 0.16);
    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.28), 0 2px 4px rgba(0, 0, 0, 0.18);

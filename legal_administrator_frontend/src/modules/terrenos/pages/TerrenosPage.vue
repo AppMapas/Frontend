@@ -78,88 +78,201 @@ onBeforeUnmount(() => window.removeEventListener('keydown', keyboard))
 <template>
   <div class="terrenos-page">
     <PageHeader title="Cálculo de terrenos" eyebrow="Plano de trazo" subtitle="Dibuja libremente, usa una plantilla o ingresa los tramos de la escritura." />
-    <BaseCard>
-      <fieldset class="unstyled" :disabled="terrain.busy">
-        <TerrainDetails :terrain="terrain.terrain" :clients="terrain.clients" :current-user="terrain.currentUser" :loading="terrain.isLoadingReferences" @update="terrain.updateTerrain" />
-      </fieldset>
-      <p v-if="terrain.referenceError" class="error" role="alert">{{ terrain.referenceError }}</p>
-      <BaseButton v-if="terrain.referenceError || !terrain.clients.length" variant="outline" size="sm" :loading="terrain.isLoadingReferences" :disabled="terrain.busy" @click="terrain.loadReferences(auth.user?.email)">Actualizar clientes y responsable</BaseButton>
-    </BaseCard>
-    <p class="local-note">1 vara = {{ VARA_TO_METERS }} m · El dibujo se conserva al navegar. Descarga el plano antes de recargar la página para conservarlo.</p>
+
+    <div class="context-strip" aria-label="Información de la sesión de dibujo">
+      <span><strong>Conversión:</strong> 1 vara = {{ VARA_TO_METERS }} m</span>
+      <span><strong>Borrador local:</strong> se conserva al navegar</span>
+      <span>Descarga el plano antes de recargar la página.</span>
+    </div>
     <p v-if="terrain.error" class="error" role="alert">{{ terrain.error }}</p>
     <p v-if="terrain.notice" class="notice" role="status">{{ terrain.notice }}</p>
-    <div class="editor-grid">
-      <BaseCard class="drawing-card">
-        <template #header><h2>Plano de trazo</h2><span class="status" aria-live="polite">{{ status }}</span></template>
-        <TerrainCreator :busy="terrain.busy" @rectangle="terrain.rectangle" @courses="terrain.fromCourses" @free="terrain.setTool('draw')" />
-        <TerrainCanvas ref="canvas" :vertices="terrain.displayVertices" :boundaries="terrain.boundaries"
-          :closed="terrain.stage !== 'drawing'" :calculated="Boolean(terrain.result)" :tool="terrain.activeTool" :busy="terrain.busy"
-          :regions="terrain.subdivisions" :street-points="terrain.street.points" :selected-side-id="terrain.selectedSideId"
-          :selected-vertex-index="terrain.selectedVertexIndex" :snap-enabled="terrain.snapEnabled"
-          @point="addPoint" @select-side="selectSide" @select-vertex="terrain.selectedVertexIndex = $event"
-          @move-vertex="terrain.moveVertex" @insert-vertex="terrain.insertVertex" @move-street-point="terrain.moveStreetPoint" @close="terrain.closePolygon" />
-        <TerrainToolbar :stage="terrain.stage" :vertex-count="terrain.vertices.length" :can-export="Boolean(terrain.result)"
-          :tool="terrain.activeTool" :snap-enabled="terrain.snapEnabled" :can-undo="terrain.canUndo" :can-redo="terrain.canRedo"
-          :selected-vertex-index="terrain.selectedVertexIndex" :busy="terrain.busy"
-          @close="terrain.closePolygon" @undo="terrain.undoVertex" @resume="terrain.resumeDrawing"
-          @example="terrain.loadExample" @reset="terrain.resetEditor" @export="canvas?.exportPng()"
-          @tool="terrain.setTool" @undo-history="terrain.undo" @redo="terrain.redo" @delete-vertex="terrain.deleteVertex"
-          @snap="terrain.snapEnabled = $event" @zoom-in="canvas?.zoomIn()" @zoom-out="canvas?.zoomOut()" @fit="canvas?.fit()" />
-        <p class="hint">Selecciona un vértice para moverlo, o haz doble clic en un lado para insertar otro. Al mover una esquina se actualizan sus lados. Ctrl/Cmd + Z deshace; Mayús + Ctrl/Cmd + Z rehace.</p>
-        <SideInspector v-if="selectedSideIndex >= 0 && terrain.stage !== 'drawing'" :vertices="terrain.displayVertices" :side-index="selectedSideIndex" :busy="terrain.busy" @edit="terrain.editSide" />
-      </BaseCard>
-      <BaseCard>
-        <template #header><h2>Colindancias y resultados</h2></template>
-        <div class="side-content">
-          <p v-if="terrain.stage === 'drawing'" class="hint">Marca las esquinas y cierra el polígono. Las medidas se conservan al volver al trazado.</p>
-          <fieldset v-else class="unstyled" :disabled="terrain.busy">
-            <BoundaryEditor :boundaries="terrain.boundaries" :selected-side-id="terrain.selectedSideId"
-              @measurement="terrain.updateMeasurement" @add="terrain.addMeasurement" @remove="terrain.removeMeasurement"
-              @boundary="terrain.updateBoundary" @select="terrain.selectedSideId = $event" />
-            <div class="actions calculation-actions">
-              <BaseButton variant="outline" :disabled="!terrain.canCalculate || terrain.busy" @click="terrain.calculate">Vista previa</BaseButton>
-              <BaseButton :disabled="!terrain.canCalculate || terrain.busy" :loading="terrain.isConverting" @click="terrain.calculateRemote">Convertir y calcular</BaseButton>
+
+    <div class="workspace-grid">
+      <section class="canvas-column" aria-label="Área de trabajo del plano">
+        <BaseCard class="drawing-card" padding="none">
+          <template #header>
+            <div class="panel-heading">
+              <span class="panel-icon" aria-hidden="true">01</span>
+              <div><p>Área de trabajo</p><h2>Plano de trazo</h2></div>
             </div>
-          </fieldset>
-          <TerrainResults v-if="terrain.result" :result="terrain.result" :record="terrain.savedRecord" :current="terrain.isCurrentSaved" :converted="terrain.convertedRevision === terrain.revision" />
-          <div v-if="terrain.result" class="save-panel">
-            <p v-if="terrain.savedRecord && !terrain.isCurrentSaved" class="hint">Los cambios se guardarán como un cálculo nuevo. El registro {{ terrain.savedRecord.id }} se conserva.</p>
-            <p v-if="terrain.saveUncertain" class="error">No se pudo confirmar el guardado. Comprueba si el cálculo ya existe antes de reintentar.</p>
-            <BaseButton v-if="terrain.saveUncertain" variant="outline" :disabled="terrain.busy" @click="terrain.saveUncertain = false; terrain.save()">Ya revisé los registros: reintentar</BaseButton>
-            <BaseButton v-else block :disabled="terrain.busy || terrain.isCurrentSaved || terrain.isLoadingReferences || !terrain.currentUser || !terrain.terrain.clientDpi" :loading="terrain.isSaving" @click="terrain.save">
-              {{ terrain.isCurrentSaved ? 'Terreno guardado' : terrain.savedRecord ? 'Guardar como nuevo cálculo' : 'Guardar terreno' }}
-            </BaseButton>
-            <div class="actions">
-              <BaseButton variant="outline" @click="localPdf">Descargar PDF del plano</BaseButton>
-              <BaseButton v-if="terrain.savedRecord" variant="outline" :loading="terrain.downloadingId === terrain.savedRecord.id" :disabled="terrain.downloadingId !== null" @click="serverPdf(terrain.savedRecord.id)">Reporte del servidor</BaseButton>
-            </div>
-            <p class="hint">El PDF del plano conserva tu dibujo. El reporte del servidor contiene su cálculo registrado y un esquema de referencia.</p>
+            <span class="status" aria-live="polite">{{ status }}</span>
+          </template>
+          <div class="canvas-toolbar">
+            <TerrainToolbar :stage="terrain.stage" :vertex-count="terrain.vertices.length" :can-export="Boolean(terrain.result)"
+              :tool="terrain.activeTool" :snap-enabled="terrain.snapEnabled" :can-undo="terrain.canUndo" :can-redo="terrain.canRedo"
+              :selected-vertex-index="terrain.selectedVertexIndex" :busy="terrain.busy"
+              @close="terrain.closePolygon" @undo="terrain.undoVertex" @resume="terrain.resumeDrawing"
+              @example="terrain.loadExample" @reset="terrain.resetEditor" @export="canvas?.exportPng()"
+              @tool="terrain.setTool" @undo-history="terrain.undo" @redo="terrain.redo" @delete-vertex="terrain.deleteVertex"
+              @snap="terrain.snapEnabled = $event" @zoom-in="canvas?.zoomIn()" @zoom-out="canvas?.zoomOut()" @fit="canvas?.fit()"
+              @pan-left="canvas?.panLeft()" @pan-right="canvas?.panRight()" @pan-up="canvas?.panUp()" @pan-down="canvas?.panDown()" />
           </div>
+          <div class="canvas-stage">
+            <TerrainCanvas ref="canvas" :vertices="terrain.displayVertices" :boundaries="terrain.boundaries"
+              :closed="terrain.stage !== 'drawing'" :calculated="Boolean(terrain.result)" :tool="terrain.activeTool" :busy="terrain.busy"
+              :regions="terrain.subdivisions" :street-points="terrain.street.points" :selected-side-id="terrain.selectedSideId"
+              :selected-vertex-index="terrain.selectedVertexIndex" :snap-enabled="terrain.snapEnabled"
+              @point="addPoint" @select-side="selectSide" @select-vertex="terrain.selectedVertexIndex = $event"
+              @move-vertex="terrain.moveVertex" @insert-vertex="terrain.insertVertex" @move-street-point="terrain.moveStreetPoint" @close="terrain.closePolygon" />
+          </div>
+          <div class="canvas-footer">
+            <p class="hint">Selecciona un vértice para moverlo, o haz doble clic en un lado para insertar otro. Al mover una esquina se actualizan sus lados. Ctrl/Cmd + Z deshace; Mayús + Ctrl/Cmd + Z rehace.</p>
+            <SideInspector v-if="selectedSideIndex >= 0 && terrain.stage !== 'drawing'" :vertices="terrain.displayVertices" :side-index="selectedSideIndex" :busy="terrain.busy" @edit="terrain.editSide" />
+          </div>
+        </BaseCard>
+      </section>
+
+      <aside class="workflow-sidebar" aria-label="Configuración y resultados del terreno">
+        <BaseCard class="workflow-card creator-card" padding="sm">
+          <template #header>
+            <div class="panel-heading compact">
+              <span class="panel-icon" aria-hidden="true">A</span>
+              <div><p>Geometría</p><h2>Crear el plano</h2></div>
+            </div>
+          </template>
+          <TerrainCreator :busy="terrain.busy" @rectangle="terrain.rectangle" @courses="terrain.fromCourses" @free="terrain.setTool('draw')" />
+        </BaseCard>
+
+        <BaseCard class="workflow-card measurements-card" padding="sm">
+          <template #header>
+            <div class="panel-heading compact">
+              <span class="panel-icon" aria-hidden="true">B</span>
+              <div><p>Medición</p><h2>Colindancias</h2></div>
+            </div>
+            <span v-if="terrain.stage !== 'drawing'" class="item-count">{{ terrain.boundaries.length }} lados</span>
+          </template>
+          <div class="side-content">
+            <p v-if="terrain.stage === 'drawing'" class="hint">Marca las esquinas y cierra el polígono. Las medidas se conservan al volver al trazado.</p>
+            <fieldset v-else class="unstyled" :disabled="terrain.busy">
+              <BoundaryEditor :boundaries="terrain.boundaries" :selected-side-id="terrain.selectedSideId"
+                @measurement="terrain.updateMeasurement" @add="terrain.addMeasurement" @remove="terrain.removeMeasurement"
+                @boundary="terrain.updateBoundary" @select="terrain.selectedSideId = $event" />
+              <div class="actions calculation-actions">
+                <BaseButton variant="outline" :disabled="!terrain.canCalculate || terrain.busy" @click="terrain.calculate">Vista previa</BaseButton>
+                <BaseButton :disabled="!terrain.canCalculate || terrain.busy" :loading="terrain.isConverting" @click="terrain.calculateRemote">Convertir y calcular</BaseButton>
+              </div>
+            </fieldset>
+          </div>
+        </BaseCard>
+
+        <BaseCard v-if="terrain.result" class="workflow-card divisions-card" padding="sm">
           <StreetEditor v-if="terrain.result" :street="terrain.street" :regions="terrain.subdivisions" :active="['street', 'divide'].includes(terrain.activeTool)"
             :kind="terrain.cutKind" :busy="terrain.busy" :saving="terrain.isSavingSplit" :can-save="terrain.isCurrentSaved" :already-saved="splitSaved"
             :records="terrain.savedSubdivisions" :downloading-id="terrain.downloadingId" :uncertain="terrain.splitUncertain"
             @start="terrain.startStreet" @divide="terrain.startCut('divide')" @update="terrain.updateStreet" @calculate="terrain.calculateStreet" @cancel="terrain.cancelStreet"
             @rename="terrain.renameRegion" @save="terrain.saveSplit" @download="serverPdf" @retry="terrain.splitUncertain = false; terrain.saveSplit()" />
+        </BaseCard>
+      </aside>
+    </div>
+
+    <section class="completion-grid" :class="{ 'is-single': !terrain.result }" aria-label="Registro y finalización del terreno">
+      <BaseCard class="workflow-card details-card" padding="sm">
+        <template #header>
+          <div class="panel-heading compact">
+            <span class="panel-icon" aria-hidden="true">C</span>
+            <div><p>Registro</p><h2>Cliente y datos del terreno</h2></div>
+          </div>
+          <span class="responsible-state">{{ terrain.currentUser ? 'Responsable listo' : 'Pendiente' }}</span>
+        </template>
+        <fieldset class="unstyled" :disabled="terrain.busy">
+          <TerrainDetails :terrain="terrain.terrain" :clients="terrain.clients" :current-user="terrain.currentUser" :loading="terrain.isLoadingReferences" @update="terrain.updateTerrain" />
+        </fieldset>
+        <div v-if="terrain.referenceError || !terrain.clients.length" class="reference-feedback">
+          <p v-if="terrain.referenceError" class="error" role="alert">{{ terrain.referenceError }}</p>
+          <BaseButton variant="outline" size="sm" :loading="terrain.isLoadingReferences" :disabled="terrain.busy" @click="terrain.loadReferences(auth.user?.email)">Actualizar clientes y responsable</BaseButton>
         </div>
       </BaseCard>
-    </div>
+
+      <BaseCard v-if="terrain.result" class="workflow-card result-card" padding="sm">
+        <template #header>
+          <div class="panel-heading compact">
+            <span class="panel-icon" aria-hidden="true">D</span>
+            <div><p>Finalización</p><h2>Resultado y guardado</h2></div>
+          </div>
+        </template>
+        <TerrainResults :result="terrain.result" :record="terrain.savedRecord" :current="terrain.isCurrentSaved" :converted="terrain.convertedRevision === terrain.revision" />
+        <div class="save-panel">
+          <p v-if="terrain.savedRecord && !terrain.isCurrentSaved" class="hint">Los cambios se guardarán como un cálculo nuevo. El registro {{ terrain.savedRecord.id }} se conserva.</p>
+          <p v-if="terrain.saveUncertain" class="error">No se pudo confirmar el guardado. Comprueba si el cálculo ya existe antes de reintentar.</p>
+          <BaseButton v-if="terrain.saveUncertain" variant="outline" :disabled="terrain.busy" @click="terrain.saveUncertain = false; terrain.save()">Ya revisé los registros: reintentar</BaseButton>
+          <BaseButton v-else block :disabled="terrain.busy || terrain.isCurrentSaved || terrain.isLoadingReferences || !terrain.currentUser || !terrain.terrain.clientDpi" :loading="terrain.isSaving" @click="terrain.save">
+            {{ terrain.isCurrentSaved ? 'Terreno guardado' : terrain.savedRecord ? 'Guardar como nuevo cálculo' : 'Guardar terreno' }}
+          </BaseButton>
+          <div class="actions">
+            <BaseButton variant="outline" @click="localPdf">Descargar PDF del plano</BaseButton>
+            <BaseButton v-if="terrain.savedRecord" variant="outline" :loading="terrain.downloadingId === terrain.savedRecord.id" :disabled="terrain.downloadingId !== null" @click="serverPdf(terrain.savedRecord.id)">Reporte del servidor</BaseButton>
+          </div>
+          <p class="hint">El PDF del plano conserva tu dibujo. El reporte del servidor contiene su cálculo registrado y un esquema de referencia.</p>
+        </div>
+      </BaseCard>
+    </section>
   </div>
 </template>
 
 <style scoped>
 .terrenos-page { width: 100%; }
-.editor-grid { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(340px, 1fr); gap: 1.25rem; align-items: start; }
-.drawing-card { position: sticky; top: calc(var(--navbar-height) + 1rem); }
-h2 { font-size: 1rem; margin: 0; }
-.status { font-size: .75rem; color: var(--color-teal-strong); margin-left: 1rem; text-align: right; }
-.hint, .local-note { font-size: .8rem; color: var(--color-text-muted); line-height: 1.6; }
-.local-note { margin: 1rem 0; }
-.side-content { display: grid; gap: 1.2rem; }
-.error { padding: .8rem; border-left: 4px solid var(--color-coral); border-radius: var(--radius-sm); background: var(--color-primary-subtle); color: var(--color-text-title); font-size: .85rem; }
-.notice { padding: .8rem; background: var(--color-bg-subtle); border-left: 4px solid var(--color-teal); }
+.terrenos-page :deep(.page-header) { position: relative; margin-bottom: 1.25rem; }
+.terrenos-page :deep(.page-header)::after { content: ''; position: absolute; width: 4.5rem; height: 3px; left: 0; bottom: -2px; border-radius: var(--radius-full); background: var(--color-coral-decorative); }
+.details-card { border-top: 3px solid var(--color-coral-decorative) !important; background: linear-gradient(135deg, var(--color-bg-elevated) 0%, var(--color-bg-elevated) 76%, var(--color-coral-decorative-pale) 160%); }
+.details-card .panel-icon { border-color: var(--color-coral-decorative); color: var(--color-coral-decorative-strong); background: var(--color-coral-decorative-soft); }
+.result-card { border-top: 3px solid var(--color-coral-decorative-mid) !important; background: linear-gradient(135deg, var(--color-bg-card) 0%, var(--color-bg-card) 72%, var(--color-coral-decorative-pale) 155%); }
+.result-card .panel-icon { border-color: var(--color-coral-decorative-mid); color: var(--color-coral-decorative-strong); background: var(--color-coral-decorative-soft); }
+.details-card :deep(.card-header), .workflow-card :deep(.card-header) { padding: .9rem 1rem; }
+.details-card :deep(.card-body), .workflow-card :deep(.card-body) { padding: 1rem; }
+.panel-heading { display: flex; align-items: center; gap: .75rem; min-width: 0; }
+.panel-heading p { margin: 0 0 .1rem; color: var(--color-text-muted); font-size: .65rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.panel-heading h2 { margin: 0; font-size: 1rem; }
+.panel-heading.compact h2 { font-size: .95rem; }
+.panel-icon { display: inline-grid; width: 2rem; height: 2rem; flex: 0 0 2rem; place-items: center; border: 1px solid var(--color-border-medium); border-radius: .65rem; color: var(--color-teal-strong); background: var(--color-primary-subtle); font-family: var(--font-mono); font-size: .7rem; font-weight: 700; }
+.responsible-state, .item-count { flex: 0 0 auto; border-radius: var(--radius-full); padding: .3rem .6rem; color: var(--color-teal-strong); background: var(--color-primary-subtle); font-size: .7rem; font-weight: 700; }
+.reference-feedback { display: flex; align-items: center; gap: .75rem; margin-top: .75rem; flex-wrap: wrap; }
+.context-strip { display: flex; align-items: center; gap: .5rem 1rem; margin: 0 0 1rem; padding: .65rem .85rem; border: 1px solid var(--color-border-subtle); border-radius: var(--radius-sm); color: var(--color-text-muted); background: var(--color-bg-subtle); font-size: .72rem; flex-wrap: wrap; }
+.context-strip span:not(:last-child)::after { content: ''; display: inline-block; width: 5px; height: 5px; margin-left: 1rem; border-radius: 50%; vertical-align: middle; background: var(--color-coral-decorative); box-shadow: 0 0 0 3px var(--color-coral-decorative-soft); }
+.context-strip strong { color: var(--color-text-title); }
+.workspace-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(340px, 390px); gap: 1rem; align-items: start; padding: 1rem; border: 1px solid var(--color-border-subtle); border-radius: var(--radius-lg); background: var(--color-bg-workspace); }
+.canvas-column { min-width: 0; }
+.drawing-card { position: sticky; top: calc(var(--navbar-height) + 1rem); overflow: hidden; box-shadow: var(--shadow-md); }
+.drawing-card :deep(.card-header) { padding: .9rem 1rem; background: var(--color-bg-elevated); }
+.drawing-card :deep(.card-body) { padding: 0; }
+.canvas-toolbar { padding: .75rem; border-bottom: 1px solid var(--color-border-subtle); background: var(--color-bg-card); }
+.canvas-stage { padding: .75rem; background: linear-gradient(135deg, var(--color-bg-card) 0%, var(--color-bg-card) 88%, var(--color-coral-decorative-pale) 145%); }
+.canvas-footer { padding: 0 .9rem .9rem; background: var(--color-bg-card); }
+.workflow-sidebar { display: grid; gap: .8rem; min-width: 0; }
+.completion-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 1rem; margin-top: 1rem; padding: 1rem; border: 1px solid var(--color-border-subtle); border-radius: var(--radius-lg); background: linear-gradient(120deg, var(--color-bg-workspace) 0%, var(--color-bg-workspace) 68%, var(--color-coral-decorative-soft) 155%); }
+.completion-grid.is-single { grid-template-columns: minmax(0, 1fr); }
+.workflow-card { overflow: hidden; box-shadow: none; }
+.status { max-width: 50%; margin-left: 1rem; padding: .35rem .65rem; border: 1px solid var(--color-border-subtle); border-radius: var(--radius-full); color: var(--color-teal-strong); background: var(--color-primary-subtle); font-size: .72rem; font-weight: 700; text-align: right; }
+.hint { color: var(--color-text-muted); font-size: .78rem; line-height: 1.55; }
+.side-content { display: grid; gap: .9rem; }
+.error { padding: .75rem .85rem; border-left: 4px solid var(--color-danger); border-radius: var(--radius-sm); background: rgba(217, 83, 79, .09); color: var(--color-text-title); font-size: .82rem; }
+.notice { margin-bottom: 1rem; padding: .75rem .85rem; border-left: 4px solid var(--color-teal); border-radius: var(--radius-sm); background: var(--color-primary-subtle); }
 .actions { display: flex; flex-wrap: wrap; gap: .5rem; margin: .8rem 0; }
 .unstyled { margin: 0; padding: 0; border: 0; min-width: 0; }
-.calculation-actions { margin-top: 1rem; }
-.save-panel { padding-top: .5rem; }
-@media (max-width: 1150px) { .editor-grid { grid-template-columns: 1fr; } .drawing-card { position: static; } }
+.calculation-actions { display: grid; grid-template-columns: 1fr 1.25fr; margin: .9rem 0 0; padding-top: .9rem; border-top: 1px solid var(--color-border-subtle); }
+.calculation-actions :deep(.base-button) { width: 100%; }
+.save-panel { display: grid; gap: .6rem; padding-top: .85rem; }
+.save-panel .actions { display: grid; grid-template-columns: 1fr 1fr; margin: 0; }
+.save-panel .actions :deep(.base-button) { width: 100%; white-space: normal; }
+.divisions-card :deep(.card-body) { padding-top: .85rem; }
+
+@media (max-width: 1180px) {
+  .workspace-grid { grid-template-columns: minmax(0, 1fr) 340px; }
+}
+@media (max-width: 1020px) {
+  .workspace-grid { grid-template-columns: 1fr; }
+  .drawing-card { position: static; }
+  .workflow-sidebar { grid-template-columns: 1fr; }
+  .completion-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 680px) {
+  .workspace-grid { margin-inline: -.5rem; padding: .5rem; border-radius: var(--radius-md); }
+  .workflow-sidebar { grid-template-columns: 1fr; }
+  .completion-grid { margin-inline: -.5rem; padding: .5rem; border-radius: var(--radius-md); }
+  .workflow-card { grid-column: auto; }
+  .responsible-state { display: none; }
+  .status { max-width: 58%; font-size: .65rem; }
+  .context-strip { align-items: flex-start; flex-direction: column; }
+  .context-strip span::after { display: none !important; }
+  .calculation-actions, .save-panel .actions { grid-template-columns: 1fr; }
+}
 </style>

@@ -75,7 +75,7 @@ function draw() {
   const ratio = canvas.value.width / width
   ctx.setTransform(ratio, 0, 0, ratio, 0, 0)
   ctx.clearRect(0, 0, width, height)
-  ctx.fillStyle = cssVar('--color-bg-subtle', '#F0F4F3')
+  ctx.fillStyle = cssVar('--color-canvas-bg', '#F6FAF9')
   ctx.fillRect(0, 0, width, height)
   ctx.lineWidth = 1
   ctx.strokeStyle = cssVar('--color-divider', '#E5EBE9')
@@ -89,12 +89,16 @@ function draw() {
   if (vertices.length) {
     path(ctx, vertices, props.closed)
     ctx.lineWidth = 2.5
-    ctx.strokeStyle = props.calculated ? cssVar('--color-teal-strong', '#44878F') : cssVar('--color-coral', '#FF8591')
+    ctx.strokeStyle = props.calculated ? cssVar('--color-plan-line', '#326B72') : cssVar('--color-teal', '#5A9B95')
     ctx.setLineDash(props.calculated ? [] : [5, 4])
     ctx.stroke()
     ctx.setLineDash([])
-    if (props.closed && !props.regions.length) { ctx.fillStyle = cssVar('--color-coral', '#FF8591') + '30'; ctx.fill() }
-    const colors = ['#5A9B9566', '#8CAAA280', '#EFAAA373']
+    if (props.closed && !props.regions.length) { ctx.fillStyle = cssVar('--color-plan-fill', 'rgba(68, 135, 143, 0.12)'); ctx.fill() }
+    const colors = [
+      cssVar('--color-region-a', 'rgba(90, 155, 149, 0.34)'),
+      cssVar('--color-region-b', 'rgba(140, 170, 162, 0.42)'),
+      cssVar('--color-region-c', 'rgba(68, 135, 143, 0.25)'),
+    ]
     props.regions.forEach((region, index) => {
       if (!region.points?.length) return
       path(ctx, region.points)
@@ -113,7 +117,7 @@ function draw() {
         if (props.selectedSideId !== null && props.boundaries[i]?.id === props.selectedSideId) {
           path(ctx, [point, next], false)
           ctx.lineWidth = 5
-          ctx.strokeStyle = cssVar('--color-coral', '#FF8591')
+          ctx.strokeStyle = cssVar('--color-selection', '#1F5961')
           ctx.stroke()
         }
         const text = formatSideMeasurements(props.boundaries[i]?.measurements ?? [])
@@ -121,11 +125,11 @@ function draw() {
       }
       const selected = props.selectedVertexIndex === i
       ctx.beginPath(); ctx.arc(p.x, p.y, selected ? 8 : 5, 0, Math.PI * 2)
-      ctx.fillStyle = selected ? cssVar('--color-teal-strong', '#44878F') : cssVar('--color-coral', '#FF8591'); ctx.fill()
+      ctx.fillStyle = selected ? cssVar('--color-selection', '#1F5961') : cssVar('--color-plan-line', '#326B72'); ctx.fill()
       ctx.lineWidth = 1.5; ctx.strokeStyle = '#FFFFFF'; ctx.stroke()
       if (props.tool === 'draw' && !props.closed && i === 0 && vertices.length >= 3) {
         ctx.beginPath(); ctx.arc(p.x, p.y, 12, 0, Math.PI * 2)
-        ctx.lineWidth = 1; ctx.strokeStyle = cssVar('--color-coral', '#FF8591'); ctx.stroke()
+        ctx.lineWidth = 1.5; ctx.strokeStyle = cssVar('--color-selection', '#1F5961'); ctx.stroke()
       }
       ctx.fillStyle = cssVar('--color-text-title', '#1C2725'); ctx.font = 'bold 12px system-ui, sans-serif'
       ctx.textAlign = 'left'; ctx.fillText(vertexLabel(i), p.x + 9, p.y - 12)
@@ -320,6 +324,31 @@ function fit() {
   draw()
 }
 
+function panView(deltaX, deltaY) {
+  if (pointer) return
+  view = { ...view, offsetX: view.offsetX + deltaX, offsetY: view.offsetY + deltaY }
+  preview.value = null
+  draw()
+}
+
+function panLeft() { panView(64, 0) }
+function panRight() { panView(-64, 0) }
+function panUp() { panView(0, 64) }
+function panDown() { panView(0, -64) }
+
+function keyDown(event) {
+  if (event.key === 'Escape') { cancelPointer(); return }
+  const navigation = {
+    ArrowLeft: panLeft,
+    ArrowRight: panRight,
+    ArrowUp: panUp,
+    ArrowDown: panDown,
+  }[event.key]
+  if (!navigation) return
+  event.preventDefault()
+  navigation()
+}
+
 function zoom(factor, screen = { x: width / 2, y: height / 2 }) {
   if (pointer) return
   const world = toWorld(screen, view)
@@ -342,7 +371,7 @@ function exportPng() {
   link.href = canvas.value.toDataURL('image/png')
   link.click()
 }
-defineExpose({ exportPng, fit, zoomIn, zoomOut })
+defineExpose({ exportPng, fit, zoomIn, zoomOut, panLeft, panRight, panUp, panDown })
 
 watch(() => [props.vertices, props.closed, props.calculated], (_, previous) => {
   preview.value = null
@@ -373,29 +402,43 @@ onBeforeUnmount(() => {
     <canvas ref="canvas" class="terrain-canvas"
       :class="{ drawing: ['draw', 'street', 'divide'].includes(tool), selecting: tool === 'select', panning: tool === 'pan', dragging }"
       tabindex="0" role="img"
-      aria-label="Plano del terreno. Dibuja las esquinas y toca la primera para cerrar. Con Seleccionar, arrastra vértices o haz doble clic en un lado para añadir un punto."
+      aria-label="Plano del terreno. Usa las flechas del teclado para desplazarte. Dibuja las esquinas y toca la primera para cerrar. Con Seleccionar, arrastra vértices o haz doble clic en un lado para añadir un punto."
       @pointerdown="pointerDown" @pointermove="pointerMove" @pointerup="pointerUp"
       @pointercancel="cancelPointer" @lostpointercapture="cancelPointer" @pointerleave="!pointer && (preview = null)"
-      @dblclick.prevent="doubleClick" @wheel.prevent="wheel" @keydown.esc="cancelPointer">
+      @dblclick.prevent="doubleClick" @wheel.prevent="wheel" @keydown="keyDown">
       Plano del terreno; las colindancias y sus medidas están disponibles en el panel contiguo.
     </canvas>
+    <div class="canvas-navigation" role="group" aria-label="Navegar por el plano">
+      <button type="button" class="nav-up" aria-label="Mover vista hacia arriba" title="Mover arriba" @click="panUp">↑</button>
+      <button type="button" class="nav-left" aria-label="Mover vista hacia la izquierda" title="Mover a la izquierda" @click="panLeft">←</button>
+      <button type="button" class="nav-down" aria-label="Mover vista hacia abajo" title="Mover abajo" @click="panDown">↓</button>
+      <button type="button" class="nav-right" aria-label="Mover vista hacia la derecha" title="Mover a la derecha" @click="panRight">→</button>
+    </div>
     <p class="canvas-help">
       <template v-if="tool === 'draw'">Marca las esquinas en orden. Toca el primer punto o usa Cerrar polígono.</template>
       <template v-else-if="tool === 'select'">Arrastra un vértice para moverlo. Haz doble clic en un lado para añadir un punto.</template>
       <template v-else-if="tool === 'pan'">Arrastra para mover la vista.</template>
       <template v-else-if="tool === 'street' || tool === 'divide'">Marca los dos extremos del trazo. Después puedes moverlos con Seleccionar.</template>
-      <span> Usa la rueda para acercar o alejar.</span>
+      <span> Usa la rueda para acercar o alejar y las flechas del teclado para desplazarte.</span>
     </p>
   </div>
 </template>
 
 <style scoped>
-.canvas-panel { min-width: 0; }
-.terrain-canvas { display: block; width: 100%; height: 480px; border-radius: var(--radius-sm); touch-action: none; }
+.canvas-panel { position: relative; min-width: 0; }
+.terrain-canvas { display: block; width: 100%; height: 480px; border: 1px solid var(--color-border-medium); border-radius: var(--radius-md); box-shadow: inset 0 0 0 1px var(--color-border-subtle); touch-action: none; }
 .terrain-canvas:focus-visible { outline: 2px solid var(--color-teal, #44878F); outline-offset: 3px; }
 .drawing { cursor: crosshair; }
 .selecting { cursor: default; }
 .panning { cursor: grab; }
 .dragging { cursor: grabbing; }
-.canvas-help { margin: .65rem 0 0; color: var(--color-text-muted); font-size: .8rem; line-height: 1.5; }
+.canvas-navigation { position: absolute; right: 1rem; bottom: 2.9rem; display: grid; grid-template-columns: repeat(3, 2rem); grid-template-rows: repeat(2, 2rem); gap: .2rem; padding: .35rem; border: 1px solid var(--color-border-medium); border-radius: var(--radius-sm); background: var(--color-bg-elevated); box-shadow: var(--shadow-md); opacity: .92; }
+.canvas-navigation button { display: grid; width: 2rem; height: 2rem; place-items: center; border: 0; border-radius: var(--radius-xs); color: var(--color-teal-strong); background: var(--color-bg-subtle); font-weight: 800; transition: color var(--transition-fast), background-color var(--transition-fast), transform var(--transition-fast); }
+.canvas-navigation button:hover { color: var(--color-text-on-primary); background: var(--color-primary); }
+.canvas-navigation button:active { transform: scale(.94); }
+.nav-up { grid-column: 2; grid-row: 1; }
+.nav-left { grid-column: 1; grid-row: 2; }
+.nav-down { grid-column: 2; grid-row: 2; }
+.nav-right { grid-column: 3; grid-row: 2; }
+.canvas-help { margin: .65rem .15rem 0; color: var(--color-text-muted); font-size: .76rem; line-height: 1.5; }
 </style>

@@ -27,7 +27,8 @@ watch(() => [props.vertices, props.sideIndex], () => {
 </template>
 
 <style scoped>
-.inspector { margin-top: 1rem; padding: .8rem; background: var(--color-bg-subtle); border-radius: var(--radius-sm); }
+.inspector { margin-top: .8rem; padding: .8rem; border: 1px solid var(--color-border-subtle); background: var(--color-bg-subtle); border-radius: var(--radius-sm); }
+.inspector strong { color: var(--color-teal-strong); }
 fieldset { border: 0; padding: .6rem 0 0; display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: .5rem; align-items: end; }
 label { display: grid; gap: .3rem; font-size: .75rem; min-width: 0; }
 input, select { width: 100%; min-width: 0; padding: .4rem; }

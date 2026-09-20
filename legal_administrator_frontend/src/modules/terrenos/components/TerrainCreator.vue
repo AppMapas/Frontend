@@ -15,7 +15,7 @@ function choose(value) { mode.value = value; if (value === 'free') emit('free') 
 
 <template>
   <fieldset class="creator" :disabled="busy">
-    <legend>Crear plano</legend>
+    <legend>Método de creación</legend>
     <div class="modes" role="group" aria-label="Forma de crear el plano">
       <BaseButton v-for="option in [{ id: 'free', label: 'Dibujo libre' }, { id: 'rectangle', label: 'Rectángulo' }, { id: 'courses', label: 'Por medidas y dirección' }]"
         :key="option.id" :variant="mode === option.id ? 'secondary' : 'outline'" :aria-pressed="mode === option.id" @click="choose(option.id)">{{ option.label }}</BaseButton>
@@ -46,14 +46,16 @@ function choose(value) { mode.value = value; if (value === 'free') emit('free') 
 </template>
 
 <style scoped>
-.creator { border: 0; padding: 0; margin-bottom: 1rem; min-width: 0; }
-legend { font-weight: 700; margin-bottom: .6rem; }
-.modes { display: flex; flex-wrap: wrap; gap: .5rem; margin: .6rem 0; }
+.creator { border: 0; padding: 0; min-width: 0; }
+legend { color: var(--color-text-muted); font-size: .72rem; font-weight: 700; }
+.modes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .4rem; margin: .6rem 0; }
+.modes :deep(.base-button) { width: 100%; height: auto; min-height: 34px; padding-inline: .45rem; white-space: normal; }
 .rectangle { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .6rem; align-items: end; }
-.rectangle button { grid-column: 1 / -1; justify-self: start; }
-.course-row { display: grid; grid-template-columns: auto 1fr 1fr 1fr auto; gap: .5rem; align-items: end; margin-bottom: .6rem; }
+.rectangle :deep(.base-button) { grid-column: 1 / -1; width: 100%; }
+.course-row { display: grid; grid-template-columns: auto minmax(0, 1fr) minmax(0, 1fr); gap: .5rem; align-items: end; margin-bottom: .6rem; }
+.course-row label:last-of-type { grid-column: 2; }
 label { display: grid; gap: .3rem; font-size: .8rem; min-width: 0; }
 input, select { padding: .5rem; width: 100%; min-width: 0; }
-.hint { font-size: .8rem; color: var(--color-text-muted); line-height: 1.5; }
-@media (max-width: 500px) { .course-row { grid-template-columns: auto 1fr 1fr; } .course-row label:last-of-type { grid-column: 2; } }
+.hint { margin: .55rem 0; font-size: .76rem; color: var(--color-text-muted); line-height: 1.5; }
+@media (max-width: 500px) { .modes { grid-template-columns: 1fr; } }
 </style>

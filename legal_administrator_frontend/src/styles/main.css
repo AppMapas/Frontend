@@ -65,7 +65,7 @@ a {
 }
 
 a:hover {
-  color: var(--color-coral);
+  color: var(--color-teal-strong);
 }
 
 button {

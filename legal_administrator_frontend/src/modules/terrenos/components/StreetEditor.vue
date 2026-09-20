@@ -45,7 +45,7 @@ defineEmits(['start', 'divide', 'update', 'calculate', 'cancel', 'rename', 'save
 </template>
 
 <style scoped>
-.street-editor { border-top: 1px solid var(--color-border-medium); padding-top: 1rem; }
+.street-editor { padding: 0; }
 h3 { font-size: 1rem; margin: 0 0 .75rem; }
 h4 { font-size: .85rem; margin-bottom: .5rem; }
 .hint { font-size: .8rem; color: var(--color-text-muted); line-height: 1.5; }
@@ -54,5 +54,6 @@ label { display: grid; gap: .3rem; font-size: .8rem; min-width: 0; }
 .region { margin: .8rem 0; }
 input, select { width: 100%; min-width: 0; padding: .5rem; }
 .actions { display: flex; gap: .5rem; flex-wrap: wrap; }
-.saved { font-size: .8rem; margin-top: 1rem; border-top: 1px solid var(--color-border-medium); }
+.saved { display: grid; gap: .6rem; padding-top: .85rem; font-size: .8rem; margin-top: 1rem; border-top: 1px solid var(--color-border-medium); }
+.saved > div { padding: .7rem; border: 1px solid var(--color-border-subtle); border-radius: var(--radius-sm); background: var(--color-bg-subtle); }
 </style>

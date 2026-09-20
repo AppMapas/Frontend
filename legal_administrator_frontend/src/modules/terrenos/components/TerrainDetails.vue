@@ -31,10 +31,9 @@ const filteredClients = computed(() => props.clients.filter((client) => client.d
 </template>
 
 <style scoped>
-.details-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 1rem; }
+.details-grid { display: grid; grid-template-columns: 1fr; gap: .75rem; }
 label { display: grid; gap: .4rem; color: var(--color-text-muted); font-size: .85rem; }
-input, select, textarea { width: 100%; min-width: 0; padding: .65rem; }
-.description { grid-column: 1 / -1; }
-.responsible { font-size: .8rem; color: var(--color-text-muted); margin: 0; }
-@media (max-width: 500px) { .details-grid { grid-template-columns: 1fr; } }
+input, select, textarea { width: 100%; min-width: 0; padding: .6rem .7rem; }
+.description { grid-column: auto; }
+.responsible { align-self: center; min-height: 40px; padding: .6rem .75rem; border: 1px solid var(--color-border-subtle); border-radius: var(--radius-sm); color: var(--color-text-muted); background: var(--color-bg-subtle); font-size: .75rem; margin: 0; }
 </style>
