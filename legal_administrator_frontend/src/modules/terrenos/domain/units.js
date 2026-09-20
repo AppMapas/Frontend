@@ -1,8 +1,11 @@
 // Contrato de UnitConversion.java. Las superficies se convierten con el factor al cuadrado.
 import { CONVERSION_FACTORS } from '../../../utils/constants.js'
 export const VARA_TO_METERS = CONVERSION_FACTORS.VARA_TO_M
+export const CUERDA_TO_METERS = CONVERSION_FACTORS.CUERDA_SIDE_VARAS * VARA_TO_METERS
+export const CUERDA_TO_SQUARE_METERS = CUERDA_TO_METERS ** 2
 export const UNITS = Object.freeze([
   { value: 'varas', label: 'Varas', factor: VARA_TO_METERS },
+  { value: 'cuerda', label: 'Cuerda (26 varas)', factor: CUERDA_TO_METERS },
   { value: 'metros', label: 'Metros', factor: 1 },
   { value: 'centímetros', label: 'Centímetros', factor: 0.01 },
   { value: 'pulgadas', label: 'Pulgadas', factor: 0.0254 },
@@ -11,6 +14,7 @@ export const UNITS = Object.freeze([
 
 const aliases = new Map([
   ['vara', 'varas'], ['m', 'metros'], ['metro', 'metros'],
+  ['cuerdas', 'cuerda'],
   ['cm', 'centímetros'], ['centimetro', 'centímetros'], ['centímetro', 'centímetros'],
   ['centimetros', 'centímetros'], ['in', 'pulgadas'], ['pulgada', 'pulgadas'],
   ['yd', 'yardas'], ['yarda', 'yardas'],
@@ -56,6 +60,12 @@ export function toSquareVaras(squareMeters) {
   return squareMeters / (VARA_TO_METERS ** 2)
 }
 
+export function toCuerdas(squareMeters) {
+  const area = Number(squareMeters)
+  if (!Number.isFinite(area)) throw new Error('El área no es válida para convertir a cuerdas.')
+  return area / CUERDA_TO_SQUARE_METERS
+}
+
 // Durante el dibujo solo se suman los componentes positivos, como en el demo original.
 // La normalización del DTO sigue validando todas las medidas al preparar una petición.
 export function positiveDraftMeasurements(measurements) {
@@ -68,7 +78,7 @@ export function sumDraftMeasurements(measurements) {
 }
 
 export function formatSideMeasurements(measurements) {
-  const labels = { varas: 'varas', metros: 'm', 'centímetros': 'cm', pulgadas: 'pulg', yardas: 'yd' }
+  const labels = { varas: 'varas', cuerda: 'cuerda', metros: 'm', 'centímetros': 'cm', pulgadas: 'pulg', yardas: 'yd' }
   return positiveDraftMeasurements(measurements)
     .map((item) => `${item.value} ${labels[normalizeUnit(item.unit)]}`).join(' + ')
 }

@@ -2,6 +2,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import BaseCard from '@/components/common/BaseCard.vue'
 import BaseButton from '@/components/common/BaseButton.vue'
+import BaseModal from '@/components/common/BaseModal.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
 import TerrainCanvas from '../components/TerrainCanvas.vue'
 import TerrainToolbar from '../components/TerrainToolbar.vue'
@@ -14,11 +15,14 @@ import StreetEditor from '../components/StreetEditor.vue'
 import { useTerrainStore } from '../stores/terrainStore.js'
 import { useAuthStore } from '@/modules/auth/stores/authStore'
 import { VARA_TO_METERS } from '../domain/units.js'
-import { createTerrainPdf } from '../domain/terrainPdf.js'
 
 const terrain = useTerrainStore()
 const auth = useAuthStore()
 const canvas = ref(null)
+const pdfPreviewUrl = ref('')
+const pdfPreviewBlob = ref(null)
+const pdfPreviewId = ref(null)
+const pdfRequestAction = ref('')
 const selectedSideIndex = computed(() => terrain.boundaries.findIndex((side) => side.id === terrain.selectedSideId))
 const splitSaved = computed(() => terrain.savedSplitFingerprint === JSON.stringify([terrain.savedRecord?.id, terrain.subdivisions]))
 const status = computed(() => {
@@ -45,17 +49,37 @@ function download(blob, name) {
   setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
 async function serverPdf(id) {
-  const blob = await terrain.downloadServerPdf(id)
-  if (blob) download(blob, 'reporte-servidor-' + id + '.pdf')
-}
-function localPdf() {
+  pdfRequestAction.value = 'download'
   try {
-    download(createTerrainPdf({
-      terrain: terrain.terrain, vertices: terrain.result.vertices, boundaries: terrain.boundaries,
-      regions: terrain.subdivisions, result: terrain.result,
-      serverRecord: terrain.isCurrentSaved ? terrain.savedRecord : null,
-    }), 'plano-terreno.pdf')
-  } catch (error) { terrain.error = error.message }
+    const blob = await terrain.downloadServerPdf(id)
+    if (blob) download(blob, 'reporte-servidor-' + id + '.pdf')
+  } finally {
+    pdfRequestAction.value = ''
+  }
+}
+function closePdfPreview() {
+  if (pdfPreviewUrl.value) URL.revokeObjectURL(pdfPreviewUrl.value)
+  pdfPreviewUrl.value = ''
+  pdfPreviewBlob.value = null
+  pdfPreviewId.value = null
+}
+async function previewServerPdf(id) {
+  pdfRequestAction.value = 'preview'
+  try {
+    const blob = await terrain.downloadServerPdf(id)
+    if (!blob) return
+    closePdfPreview()
+    pdfPreviewBlob.value = blob
+    pdfPreviewId.value = id
+    pdfPreviewUrl.value = URL.createObjectURL(blob)
+  } finally {
+    pdfRequestAction.value = ''
+  }
+}
+function downloadPreviewedPdf() {
+  if (pdfPreviewBlob.value && pdfPreviewId.value) {
+    download(pdfPreviewBlob.value, 'reporte-servidor-' + pdfPreviewId.value + '.pdf')
+  }
 }
 function keyboard(event) {
   if (event.target.closest('input, textarea, select, [contenteditable="true"]') || terrain.busy) return
@@ -72,7 +96,10 @@ function keyboard(event) {
 }
 watch(() => auth.user?.email, (email) => { if (email) terrain.loadReferences(email) }, { immediate: true })
 onMounted(() => window.addEventListener('keydown', keyboard))
-onBeforeUnmount(() => window.removeEventListener('keydown', keyboard))
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', keyboard)
+  closePdfPreview()
+})
 </script>
 
 <template>
@@ -81,6 +108,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', keyboard))
 
     <div class="context-strip" aria-label="Información de la sesión de dibujo">
       <span><strong>Conversión:</strong> 1 vara = {{ VARA_TO_METERS }} m</span>
+      <span><strong>Cuerda:</strong> 1 cuerda = 26 varas</span>
       <span><strong>Borrador local:</strong> se conserva al navegar</span>
       <span>Descarga el plano antes de recargar la página.</span>
     </div>
@@ -195,18 +223,37 @@ onBeforeUnmount(() => window.removeEventListener('keydown', keyboard))
           <p v-if="terrain.savedRecord && !terrain.isCurrentSaved" class="hint">Los cambios se guardarán como un cálculo nuevo. El registro {{ terrain.savedRecord.id }} se conserva.</p>
           <p v-if="terrain.saveUncertain" class="error">No se pudo confirmar el guardado. Comprueba si el cálculo ya existe antes de reintentar.</p>
           <BaseButton v-if="terrain.saveUncertain" variant="outline" :disabled="terrain.busy" @click="terrain.saveUncertain = false; terrain.save()">Ya revisé los registros: reintentar</BaseButton>
-          <BaseButton v-else block :disabled="terrain.busy || terrain.isCurrentSaved || terrain.isLoadingReferences || !terrain.currentUser || !terrain.terrain.clientDpi" :loading="terrain.isSaving" @click="terrain.save">
+          <p v-if="terrain.error" class="error" role="alert">{{ terrain.error }}</p>
+          <BaseButton v-else block :disabled="terrain.busy || terrain.isCurrentSaved" :loading="terrain.isSaving" @click="terrain.save">
             {{ terrain.isCurrentSaved ? 'Terreno guardado' : terrain.savedRecord ? 'Guardar como nuevo cálculo' : 'Guardar terreno' }}
           </BaseButton>
-          <div class="actions">
-            <BaseButton variant="outline" @click="localPdf">Descargar PDF del plano</BaseButton>
-            <BaseButton v-if="terrain.savedRecord" variant="outline" :loading="terrain.downloadingId === terrain.savedRecord.id" :disabled="terrain.downloadingId !== null" @click="serverPdf(terrain.savedRecord.id)">Reporte del servidor</BaseButton>
+          <div v-if="terrain.savedRecord" class="actions">
+            <BaseButton variant="outline" :loading="terrain.downloadingId === terrain.savedRecord.id && pdfRequestAction === 'preview'" :disabled="terrain.downloadingId !== null" @click="previewServerPdf(terrain.savedRecord.id)">Previsualizar PDF</BaseButton>
+            <BaseButton variant="outline" :loading="terrain.downloadingId === terrain.savedRecord.id && pdfRequestAction === 'download'" :disabled="terrain.downloadingId !== null" @click="serverPdf(terrain.savedRecord.id)">Descargar PDF</BaseButton>
           </div>
           <p class="hint">El PDF del plano conserva tu dibujo. El reporte del servidor contiene su cálculo registrado y un esquema de referencia.</p>
         </div>
       </BaseCard>
     </section>
   </div>
+
+  <BaseModal :open="Boolean(pdfPreviewUrl)" title-id="pdf-preview-title" description-id="pdf-preview-description" wide @close="closePdfPreview">
+    <div class="pdf-preview">
+      <header>
+        <div>
+          <p>Reporte generado por el servidor</p>
+          <h2 id="pdf-preview-title">Previsualización del plano</h2>
+          <span id="pdf-preview-description">Cálculo registrado {{ pdfPreviewId }}</span>
+        </div>
+        <button type="button" aria-label="Cerrar previsualización" @click="closePdfPreview">×</button>
+      </header>
+      <iframe :src="pdfPreviewUrl" title="Vista previa del reporte PDF"></iframe>
+      <footer>
+        <BaseButton variant="outline" @click="closePdfPreview">Cerrar</BaseButton>
+        <BaseButton @click="downloadPreviewedPdf">Descargar PDF</BaseButton>
+      </footer>
+    </div>
+  </BaseModal>
 </template>
 
 <style scoped>
@@ -244,7 +291,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', keyboard))
 .status { max-width: 50%; margin-left: 1rem; padding: .35rem .65rem; border: 1px solid var(--color-border-subtle); border-radius: var(--radius-full); color: var(--color-teal-strong); background: var(--color-primary-subtle); font-size: .72rem; font-weight: 700; text-align: right; }
 .hint { color: var(--color-text-muted); font-size: .78rem; line-height: 1.55; }
 .side-content { display: grid; gap: .9rem; }
-.error { padding: .75rem .85rem; border-left: 4px solid var(--color-danger); border-radius: var(--radius-sm); background: rgba(217, 83, 79, .09); color: var(--color-text-title); font-size: .82rem; }
+.error { padding: .75rem .85rem; border-left: 4px solid var(--color-danger); border-radius: var(--radius-sm); background: rgba(217, 83, 79, .09); color: var(--color-text-title); font-size: .82rem; white-space: pre-line; }
 .notice { margin-bottom: 1rem; padding: .75rem .85rem; border-left: 4px solid var(--color-teal); border-radius: var(--radius-sm); background: var(--color-primary-subtle); }
 .actions { display: flex; flex-wrap: wrap; gap: .5rem; margin: .8rem 0; }
 .unstyled { margin: 0; padding: 0; border: 0; min-width: 0; }
@@ -254,6 +301,17 @@ onBeforeUnmount(() => window.removeEventListener('keydown', keyboard))
 .save-panel .actions { display: grid; grid-template-columns: 1fr 1fr; margin: 0; }
 .save-panel .actions :deep(.base-button) { width: 100%; white-space: normal; }
 .divisions-card :deep(.card-body) { padding-top: .85rem; }
+.pdf-preview { display: grid; grid-template-rows: auto minmax(420px, 72vh) auto; }
+.pdf-preview header, .pdf-preview footer { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1rem 1.2rem; }
+.pdf-preview header { border-bottom: 1px solid var(--color-border-subtle); }
+.pdf-preview header p, .pdf-preview header h2, .pdf-preview header span { margin: 0; }
+.pdf-preview header p { color: var(--color-teal-strong); font-size: .68rem; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; }
+.pdf-preview header h2 { margin-top: .15rem; font-size: 1.1rem; }
+.pdf-preview header span { color: var(--color-text-muted); font-size: .72rem; }
+.pdf-preview header > button { display: grid; width: 2.25rem; height: 2.25rem; flex: none; place-items: center; border-radius: var(--radius-sm); color: var(--color-text-muted); font-size: 1.4rem; }
+.pdf-preview header > button:hover { color: var(--color-text-title); background: var(--color-bg-subtle); }
+.pdf-preview iframe { width: 100%; height: 100%; border: 0; background: var(--color-bg-subtle); }
+.pdf-preview footer { justify-content: flex-end; border-top: 1px solid var(--color-border-subtle); }
 
 @media (max-width: 1180px) {
   .workspace-grid { grid-template-columns: minmax(0, 1fr) 340px; }
@@ -274,5 +332,8 @@ onBeforeUnmount(() => window.removeEventListener('keydown', keyboard))
   .context-strip { align-items: flex-start; flex-direction: column; }
   .context-strip span::after { display: none !important; }
   .calculation-actions, .save-panel .actions { grid-template-columns: 1fr; }
+  .pdf-preview { grid-template-rows: auto minmax(360px, 65vh) auto; }
+  .pdf-preview footer { align-items: stretch; flex-direction: column-reverse; }
+  .pdf-preview footer :deep(.base-button) { width: 100%; }
 }
 </style>

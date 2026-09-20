@@ -1,6 +1,6 @@
 import { bearingDegrees, createRectangle, distance, reconstructPolygon, snapPoint, splitByLine, splitByStreet, validateSubdivision, verticesFromCourses } from './geometry.js'
 import { normalizeMeasurement, positiveDraftMeasurements, sumDraftMeasurements, toMeters } from './units.js'
-import { buildCalculationRequest } from './calculationContract.js'
+import { buildCalculationRequest, getCalculationValidationErrors } from './calculationContract.js'
 
 const clone = (value) => JSON.parse(JSON.stringify(value))
 const boundary = (id) => ({ id, referencePoint: '', orientation: '', measurements: [{ value: '', unit: 'varas' }] })
@@ -300,8 +300,13 @@ export function createTerrainDefinition(api) {
           if (revision !== this.revision) return false
           if (!Array.isArray(converted) || converted.length !== measures.length) throw new Error('La conversión recibida está incompleta.')
           converted.forEach((item, i) => {
+            const expectedMeters = toMeters(measures[i])
+            const conversionTolerance = Math.max(1e-8, expectedMeters * 1e-8)
             if (!Number.isFinite(item.convertedValueMeters) || item.convertedValueMeters <= 0
-              || Number(item.originalValue) !== measures[i].value || item.unit !== measures[i].unit) throw new Error('El servidor devolvió una conversión inválida.')
+              || Number(item.originalValue) !== measures[i].value || item.unit !== measures[i].unit
+              || Math.abs(item.convertedValueMeters - expectedMeters) > conversionTolerance) {
+              throw new Error(`El servidor devolvió una conversión incompatible para la unidad ${measures[i].unit}.`)
+            }
           })
           let offset = 0
           const lengths = sides.map((side) => side.measurements.reduce((sum) => sum + converted[offset++].convertedValueMeters, 0))
@@ -315,9 +320,15 @@ export function createTerrainDefinition(api) {
         if (this.busy || this.isCurrentSaved || this.saveUncertain) return
         this.error = ''; this.notice = ''
         try {
-          if (this.isLoadingReferences || !this.currentUser || this.terrain.userSystemId !== this.currentUser.dpi) throw new Error('Carga el usuario responsable antes de guardar.')
-          if (!this.clients.some((client) => client.dpi === this.terrain.clientDpi)) throw new Error('Selecciona un cliente registrado.')
-          if (!this.result) throw new Error('Calcula el área antes de guardar.')
+          let missing = getCalculationValidationErrors(this.terrain, cleanBoundaries(this.boundaries))
+          if (this.isLoadingReferences) missing.unshift('Espera a que se carguen los clientes y el usuario responsable.')
+          if (!this.currentUser || this.terrain.userSystemId !== this.currentUser.dpi) {
+            missing = missing.filter((message) => message !== 'No se pudo identificar el usuario responsable.')
+            missing.unshift('Carga el usuario responsable antes de guardar.')
+          }
+          if (this.terrain.clientDpi && !this.clients.some((client) => client.dpi === this.terrain.clientDpi)) missing.unshift('Selecciona un cliente registrado.')
+          if (!this.result) missing.unshift('Calcula el área antes de guardar.')
+          if (missing.length) throw new Error(`Completa la información requerida:\n• ${[...new Set(missing)].join('\n• ')}`)
           buildCalculationRequest(this.terrain, cleanBoundaries(this.boundaries))
         } catch (error) { this.error = error.message; return }
         if (this.convertedRevision !== this.revision && !await this.calculateRemote()) return

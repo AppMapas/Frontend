@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+import { clearPersistedAuthSession, persistAuthSession, readPersistedAuthSession } from '@/shared/auth/authSessionStorage'
 import { authApi } from '../services/authApi'
 
 let twoFactorSetupRequestId = 0
@@ -29,18 +30,21 @@ function validateTwoFactorCode(code) {
 }
 
 export const useAuthStore = defineStore('auth', {
-  state: () => ({
-    isAuthenticated: false,
-    pending2FA: false,
-    pendingEmail: null,
-    user: null,
-    accessToken: null,
-    refreshToken: null,
-    twoFactorEnabled: false,
-    twoFactorSetup: null,
-    isTwoFactorLoading: false,
-    twoFactorError: null,
-  }),
+  state: () => {
+    const persisted = readPersistedAuthSession()
+    return {
+      isAuthenticated: Boolean(persisted),
+      pending2FA: false,
+      pendingEmail: null,
+      user: persisted?.user ?? null,
+      accessToken: persisted?.accessToken ?? null,
+      refreshToken: persisted?.refreshToken ?? null,
+      twoFactorEnabled: persisted?.twoFactorEnabled ?? false,
+      twoFactorSetup: null,
+      isTwoFactorLoading: false,
+      twoFactorError: null,
+    }
+  },
 
   actions: {
     setSession(response, twoFactorFallback = this.twoFactorEnabled) {
@@ -55,6 +59,16 @@ export const useAuthStore = defineStore('auth', {
       this.twoFactorEnabled = getTwoFactorStatus(response, twoFactorFallback)
       this.pending2FA = false
       this.pendingEmail = null
+      this.persistSession()
+    },
+
+    persistSession() {
+      persistAuthSession({
+        accessToken: this.accessToken,
+        refreshToken: this.refreshToken,
+        user: this.user,
+        twoFactorEnabled: this.twoFactorEnabled,
+      })
     },
 
     async login(credentials) {
@@ -154,6 +168,7 @@ export const useAuthStore = defineStore('auth', {
 
         this.twoFactorEnabled = getTwoFactorStatus(response, true)
         this.twoFactorSetup = null
+        this.persistSession()
 
         return response
       } catch (error) {
@@ -174,6 +189,7 @@ export const useAuthStore = defineStore('auth', {
 
         this.twoFactorEnabled = getTwoFactorStatus(response, false)
         this.twoFactorSetup = null
+        this.persistSession()
 
         return response
       } catch (error) {
@@ -205,6 +221,7 @@ export const useAuthStore = defineStore('auth', {
       this.refreshToken = null
       this.twoFactorEnabled = false
       this.cancelTwoFactorSetup()
+      clearPersistedAuthSession()
     },
   },
 })

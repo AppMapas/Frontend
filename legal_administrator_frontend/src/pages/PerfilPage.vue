@@ -1,8 +1,6 @@
 <script setup>
 import PageHeader from '@/components/common/PageHeader.vue'
 import BaseCard from '@/components/common/BaseCard.vue'
-import BaseButton from '@/components/common/BaseButton.vue'
-import BaseBadge from '@/components/common/BaseBadge.vue'
 import IconUser from '@/assets/icons/IconUser.vue'
 import { useAuthStore } from '@/modules/auth/stores/authStore'
 import TwoFactorSettings from '@/modules/auth/components/two-factor/TwoFactorSettings.vue'
@@ -19,69 +17,21 @@ const authStore = useAuthStore()
     />
 
     <div class="profile-grid">
-      <!-- Tarjeta Principal de Usuario -->
       <BaseCard>
         <div class="profile-hero">
           <div class="profile-avatar-large">
             <IconUser :size="42" color="#FFFFFF" />
           </div>
           <div class="profile-title-info">
-            <h2>{{ authStore.user?.name || 'Usuario' }}</h2>
-            <p class="role-tag">{{ authStore.user?.role || 'Sin rol asignado' }}</p>
-            <BaseBadge variant="coral">Sesión Activa</BaseBadge>
+            <h2>{{ authStore.user?.name || '—' }}</h2>
+            <p class="role-tag">{{ authStore.user?.role || '—' }}</p>
           </div>
         </div>
 
         <div class="profile-details-list">
           <div class="detail-item">
             <span class="detail-name">Correo Electrónico:</span>
-            <span class="detail-value">{{ authStore.user?.email || 'No disponible' }}</span>
-          </div>
-          <div class="detail-item">
-            <span class="detail-name">Entorno:</span>
-            <span class="detail-value font-mono">Producción Local (Docker)</span>
-          </div>
-          <div class="detail-item">
-            <span class="detail-name">Permisos:</span>
-            <span class="detail-value">Cálculo de Áreas, Edición Registral, Reportes y Usuarios</span>
-          </div>
-          <div class="detail-item">
-            <span class="detail-name">Último acceso:</span>
-            <span class="detail-value font-mono">Hoy a las 01:50 hrs</span>
-          </div>
-        </div>
-
-        <template #footer>
-          <div class="profile-actions">
-            <BaseButton variant="outline" size="sm">Cambiar Contraseña</BaseButton>
-            <BaseButton variant="primary" size="sm">Actualizar Datos</BaseButton>
-          </div>
-        </template>
-      </BaseCard>
-
-      <!-- Tarjeta de Auditoría / Preferencias -->
-      <BaseCard>
-        <template #header>
-          <h3>Preferencias del Sistema</h3>
-        </template>
-
-        <div class="pref-list">
-          <div class="pref-item">
-            <div>
-              <strong>Unidad de Medida Predeterminada</strong>
-              <p class="text-muted">Se utiliza como base para cálculos geométricos</p>
-            </div>
-            <BaseBadge variant="teal">Varas / Metros</BaseBadge>
-          </div>
-
-          <div class="pref-divider"></div>
-
-          <div class="pref-item">
-            <div>
-              <strong>Tema Visual</strong>
-              <p class="text-muted">Paleta oficial definida en docs/ui.md</p>
-            </div>
-            <BaseBadge variant="coral">Oficial UI 2026</BaseBadge>
+            <span class="detail-value">{{ authStore.user?.email || '—' }}</span>
           </div>
         </div>
       </BaseCard>
@@ -163,38 +113,6 @@ const authStore = useAuthStore()
   color: var(--color-text-body);
   font-weight: 600;
 }
-
-.profile-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.75rem;
-}
-
-.pref-list {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.pref-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 0.875rem;
-}
-
-.pref-item p {
-  margin: 0.2rem 0 0 0;
-  font-size: 0.8125rem;
-}
-
-.pref-divider {
-  height: 1px;
-  background-color: var(--color-border-subtle);
-}
-
-.font-mono { font-family: var(--font-mono); }
-.text-muted { color: var(--color-text-muted); }
 
 @media (max-width: 860px) {
   .profile-grid {

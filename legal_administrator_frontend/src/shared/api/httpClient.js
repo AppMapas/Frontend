@@ -1,3 +1,5 @@
+import { interceptAuthResponse } from '../auth/authSessionStorage.js'
+
 const DEFAULT_API_URL = 'http://localhost:8080/api/v1'
 
 export const API_BASE_URL = (import.meta.env?.VITE_API_URL || DEFAULT_API_URL).replace(/\/+$/, '')
@@ -135,6 +137,7 @@ export async function httpClient(endpoint, options = {}) {
       throw new ApiError(message, { status: response.status, data })
     }
 
+    interceptAuthResponse(data)
     return data
   } catch (error) {
     if (error instanceof ApiError) throw error

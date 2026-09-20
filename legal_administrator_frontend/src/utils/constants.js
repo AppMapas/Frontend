@@ -9,7 +9,7 @@ export const CONVERSION_FACTORS = {
   M_TO_VARA: 1 / VARA_TO_M,
   VARA2_TO_M2: VARA_TO_M ** 2,
   M2_TO_VARA2: 1 / (VARA_TO_M ** 2),
-  CUERDA_STANDARD_VARAS: 441 // 21 x 21 varas
+  CUERDA_SIDE_VARAS: 26,
 }
 
 export const APP_INFO = {

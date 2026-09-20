@@ -9,6 +9,45 @@ export const BACKEND_CAPABILITIES = Object.freeze({
   pdfUsesSavedGeometry: false,
 })
 
+export function getCalculationValidationErrors(terrain = {}, boundaries = []) {
+  const errors = []
+  const required = [
+    ['clientDpi', 'Selecciona el cliente propietario.'],
+    ['userSystemId', 'No se pudo identificar el usuario responsable.'],
+    ['terrainName', 'Ingresa el nombre del terreno.'],
+    ['propertyType', 'Selecciona el tipo de propiedad.'],
+  ]
+
+  required.forEach(([field, message]) => {
+    if (typeof terrain[field] !== 'string' || !terrain[field].trim()) errors.push(message)
+  })
+
+  if (!Array.isArray(boundaries) || boundaries.length < 3) {
+    errors.push('El plano debe incluir al menos tres colindancias.')
+    return errors
+  }
+
+  boundaries.forEach((boundary, index) => {
+    if (!Array.isArray(boundary.measurements) || !boundary.measurements.length) {
+      errors.push(`Ingresa al menos una medida para el lado ${index + 1}.`)
+      return
+    }
+    boundary.measurements.forEach((measurement, measurementIndex) => {
+      try {
+        normalizeMeasurement(measurement)
+      } catch {
+        errors.push(`Completa una medida válida en el lado ${index + 1}, medida ${measurementIndex + 1}.`)
+      }
+    })
+    const orientation = String(boundary.orientation ?? '').trim().toUpperCase().replace(/^W$/, 'O')
+    if (orientation && !['N', 'S', 'E', 'O'].includes(orientation)) {
+      errors.push(`La orientación del lado ${index + 1} debe ser N, S, E u O.`)
+    }
+  })
+
+  return errors
+}
+
 export function buildCalculationRequest(terrain, boundaries) {
   const requiredText = (value, name) => {
     if (typeof value !== 'string' || !value.trim()) throw new Error(`${name} es obligatorio.`)

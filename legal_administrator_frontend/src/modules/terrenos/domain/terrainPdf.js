@@ -1,5 +1,5 @@
 import { distance, polygonArea } from './geometry.js'
-import { formatSideMeasurements, toSquareVaras } from './units.js'
+import { formatSideMeasurements, toCuerdas, toSquareVaras } from './units.js'
 
 const PAGE_WIDTH = 595.28
 const PAGE_HEIGHT = 841.89
@@ -163,7 +163,7 @@ export function createTerrainPdfBytes({ terrain = {}, vertices, boundaries = [],
   add(textCommand(serverRecord?.id ? `Registro del servidor: ${serverRecord.id}` : 'Vista previa local · Sin registro asociado', MARGIN, 740, 10))
   add(drawPlan(vertices, regions))
   add(textCommand(`Área del plano: ${amount(localArea)} m²`, MARGIN, 279, 16, true))
-  add(textCommand(`Equivalencia: ${amount(toSquareVaras(localArea))} varas² · 1 vara = 0.836 m`, MARGIN, 257, 10))
+  add(textCommand(`Equivalencia: ${amount(toSquareVaras(localArea))} varas² · ${amount(toCuerdas(localArea))} cuerdas`, MARGIN, 257, 10))
   add(textCommand(serverRecord ? `Área registrada por el servidor: ${amount(serverRecord.totalAreaSquareMeters)} m²` : 'Área registrada por el servidor: Sin guardar', MARGIN, 232, 11))
   add(textCommand('El área local corresponde a la geometría mostrada en esta página.', MARGIN, 210, 9))
   add(textCommand('Resultado orientativo según las medidas y direcciones del croquis.', MARGIN, 195, 9))

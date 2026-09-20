@@ -18,6 +18,10 @@ const props = defineProps({
     type: Boolean,
     default: true,
   },
+  wide: {
+    type: Boolean,
+    default: false,
+  },
 })
 
 const emit = defineEmits(['close'])
@@ -93,6 +97,7 @@ onBeforeUnmount(() => {
         <section
           ref="dialog"
           class="modal-dialog"
+          :class="{ 'is-wide': wide }"
           role="dialog"
           aria-modal="true"
           tabindex="-1"
@@ -127,6 +132,10 @@ onBeforeUnmount(() => {
   border-radius: var(--radius-lg);
   background: var(--color-bg-elevated);
   box-shadow: 0 24px 64px rgba(23, 63, 70, 0.22);
+}
+
+.modal-dialog.is-wide {
+  width: min(100%, 1100px);
 }
 
 .modal-fade-enter-active,

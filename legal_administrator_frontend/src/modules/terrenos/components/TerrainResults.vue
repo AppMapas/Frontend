@@ -1,5 +1,5 @@
 <script setup>
-import { toSquareVaras } from '../domain/units.js'
+import { toCuerdas, toSquareVaras } from '../domain/units.js'
 defineProps({ result: { type: Object, required: true }, record: { type: Object, default: null }, current: Boolean, converted: Boolean })
 </script>
 
@@ -8,6 +8,7 @@ defineProps({ result: { type: Object, required: true }, record: { type: Object, 
     <p class="eyebrow">Área estimada del dibujo</p>
     <p class="area">{{ result.area.toFixed(2) }} <small>m²</small></p>
     <p>≈ {{ toSquareVaras(result.area).toFixed(2) }} varas²</p>
+    <p>≈ {{ toCuerdas(result.area).toFixed(3) }} cuerdas</p>
     <p class="closure">{{ converted ? 'Medidas convertidas por el servidor.' : 'Vista previa con las medidas del croquis.' }}</p>
     <template v-if="record">
       <p class="registered">Área registrada: <strong>{{ record.totalAreaSquareMeters.toFixed(2) }} m²</strong> · Cálculo {{ record.id }}</p>
