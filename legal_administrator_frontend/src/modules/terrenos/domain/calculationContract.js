@@ -1,6 +1,17 @@
 import { normalizeMeasurement } from './units.js'
 import { validatePolygon } from './geometry.js'
 
+const API_UNITS = Object.freeze({
+  metros: 'METERS',
+  varas: 'VARAS',
+  cuerda: 'CUERDA',
+  'centímetros': 'CENTIMETERS',
+  pulgadas: 'INCHES',
+  yardas: 'YARDS',
+})
+
+const API_ORIENTATIONS = Object.freeze({ N: 'Norte', S: 'Sur', E: 'Este', O: 'Oeste' })
+
 export const BACKEND_CAPABILITIES = Object.freeze({
   savesVertices: false,
   exactAreaForIrregularPolygons: false,
@@ -16,6 +27,7 @@ export function getCalculationValidationErrors(terrain = {}, boundaries = []) {
     ['userSystemId', 'No se pudo identificar el usuario responsable.'],
     ['terrainName', 'Ingresa el nombre del terreno.'],
     ['propertyType', 'Selecciona el tipo de propiedad.'],
+    ['location', 'Ingresa la ubicación del terreno.'],
   ]
 
   required.forEach(([field, message]) => {
@@ -48,7 +60,7 @@ export function getCalculationValidationErrors(terrain = {}, boundaries = []) {
   return errors
 }
 
-export function buildCalculationRequest(terrain, boundaries) {
+export function buildCalculationRequest(terrain, boundaries, planImageBase64) {
   const requiredText = (value, name) => {
     if (typeof value !== 'string' || !value.trim()) throw new Error(`${name} es obligatorio.`)
     return value.trim()
@@ -56,12 +68,17 @@ export function buildCalculationRequest(terrain, boundaries) {
   if (!Array.isArray(boundaries) || boundaries.length < 3) {
     throw new Error('Incluye al menos tres colindancias.')
   }
+  if (typeof planImageBase64 !== 'string' || !/^data:image\/png;base64,[A-Za-z0-9+/=]+$/.test(planImageBase64)) {
+    throw new Error('No fue posible generar la imagen PNG del plano.')
+  }
   return {
     clientDpi: requiredText(terrain.clientDpi, 'El DPI del cliente'),
     userSystemId: requiredText(terrain.userSystemId, 'El DPI del usuario'),
     terrainName: requiredText(terrain.terrainName, 'El nombre del terreno'),
     generalDescription: String(terrain.generalDescription ?? '').trim(),
     propertyType: requiredText(terrain.propertyType, 'El tipo de propiedad'),
+    location: requiredText(terrain.location, 'La ubicación del terreno'),
+    planImageBase64,
     boundaries: boundaries.map((boundary, i) => {
       if (!Array.isArray(boundary.measurements) || !boundary.measurements.length) {
         throw new Error(`El lado ${i + 1} debe incluir medidas.`)
@@ -73,8 +90,11 @@ export function buildCalculationRequest(terrain, boundaries) {
       return {
         sideNumber: i + 1,
         referencePoint: String(boundary.referencePoint ?? '').trim(),
-        orientation,
-        measurements: boundary.measurements.map(normalizeMeasurement),
+        orientation: orientation ? API_ORIENTATIONS[orientation] : '',
+        measurements: boundary.measurements.map((measurement) => {
+          const normalized = normalizeMeasurement(measurement)
+          return { value: normalized.value, unit: API_UNITS[normalized.unit] }
+        }),
       }
     }),
   }

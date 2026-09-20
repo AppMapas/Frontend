@@ -14,7 +14,7 @@ import TerrainResults from '../components/TerrainResults.vue'
 import StreetEditor from '../components/StreetEditor.vue'
 import { useTerrainStore } from '../stores/terrainStore.js'
 import { useAuthStore } from '@/modules/auth/stores/authStore'
-import { VARA_TO_METERS } from '../domain/units.js'
+import { positiveDraftMeasurements, toMeters, VARA_TO_METERS } from '../domain/units.js'
 
 const terrain = useTerrainStore()
 const auth = useAuthStore()
@@ -27,7 +27,7 @@ const selectedSideIndex = computed(() => terrain.boundaries.findIndex((side) => 
 const splitSaved = computed(() => terrain.savedSplitFingerprint === JSON.stringify([terrain.savedRecord?.id, terrain.subdivisions]))
 const status = computed(() => {
   if (terrain.isSaving) return 'Guardando terreno…'
-  if (terrain.isConverting) return 'Convirtiendo medidas…'
+  if (terrain.isConverting) return 'Convirtiendo, calculando y registrando…'
   if (terrain.activeTool === 'street') return 'Marca la entrada y salida de la calle'
   if (terrain.activeTool === 'divide') return 'Marca dos puntos para dividir'
   return { drawing: '1 · Dibuja las esquinas en orden', measuring: '2 · Ingresa las medidas', done: '3 · Revisa y guarda el terreno' }[terrain.stage]
@@ -41,6 +41,64 @@ async function selectSide(id) {
   if (id === null) return
   await nextTick()
   document.getElementById('terrain-side-' + id)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+}
+async function capturePlanImage() {
+  terrain.calculate()
+  if (!terrain.result) return ''
+  await nextTick()
+  return canvas.value?.toDataUrl() ?? ''
+}
+function buildFigureJson() {
+  const round = (value) => Number(Number(value).toFixed(6))
+  const orientationNames = { N: 'Norte', S: 'Sur', E: 'Oriente', O: 'Poniente' }
+  const vertices = terrain.displayVertices.map(({ x, y }) => ({ x: round(x), y: round(y) }))
+
+  return {
+    meta: {
+      unit: 'm',
+      generatedAt: new Date().toISOString(),
+      closed: terrain.stage !== 'drawing',
+      calculated: Boolean(terrain.result),
+    },
+    vertices,
+    boundaries: terrain.boundaries.map((side, sideIndex) => {
+      const baseLabel = orientationNames[side.orientation]
+        || String(side.referencePoint ?? '').trim()
+        || `Lado ${sideIndex + 1}`
+      const measurements = positiveDraftMeasurements(side.measurements)
+
+      return {
+        id: side.id,
+        fromVertex: sideIndex,
+        toVertex: (sideIndex + 1) % vertices.length,
+        measurements: measurements.map((measurement, measurementIndex) => ({
+          label: measurements.length > 1 ? `${baseLabel}, tramo ${measurementIndex + 1}` : baseLabel,
+          value: round(toMeters(measurement)),
+          unit: 'm',
+        })),
+      }
+    }),
+    regions: terrain.subdivisions.map((region) => ({
+      cutName: region.cutName,
+      area: round(region.area),
+      points: region.points.map(({ x, y }) => ({ x: round(x), y: round(y) })),
+    })),
+    streetPoints: terrain.street.points.map(({ x, y }) => ({ x: round(x), y: round(y) })),
+  }
+}
+async function convertAndCalculate() {
+  const planImageBase64 = await capturePlanImage()
+  if (!terrain.result) return
+  console.log('[Terrenos] Estructura de la figura (JSON):\n' + JSON.stringify(buildFigureJson(), null, 2))
+  await terrain.calculateRemote(planImageBase64)
+}
+async function saveTerrain() {
+  const planImageBase64 = await capturePlanImage()
+  await terrain.save(planImageBase64)
+}
+async function retrySave() {
+  terrain.saveUncertain = false
+  await saveTerrain()
 }
 function download(blob, name) {
   const url = URL.createObjectURL(blob), link = document.createElement('a')
@@ -105,6 +163,14 @@ onBeforeUnmount(() => {
 <template>
   <div class="terrenos-page">
     <PageHeader title="Cálculo de terrenos" eyebrow="Plano de trazo" subtitle="Dibuja libremente, usa una plantilla o ingresa los tramos de la escritura." />
+
+    <!-- <aside class="legal-disclaimer" role="note" aria-label="Aviso sobre el valor legal del plano"> -->
+      <!-- <span aria-hidden="true">!</span> -->
+      <!-- <div> -->
+        <!-- <strong>Aviso importante</strong> -->
+        <!-- <p>Esta herramienta no posee valor legal. El polígono y las medidas generadas son datos preliminares de referencia y deben ser verificados por un profesional autorizado.</p> -->
+      <!-- </div> -->
+    <!-- </aside> -->
 
     <div class="context-strip" aria-label="Información de la sesión de dibujo">
       <span><strong>Conversión:</strong> 1 vara = {{ VARA_TO_METERS }} m</span>
@@ -177,7 +243,7 @@ onBeforeUnmount(() => {
                 @boundary="terrain.updateBoundary" @select="terrain.selectedSideId = $event" />
               <div class="actions calculation-actions">
                 <BaseButton variant="outline" :disabled="!terrain.canCalculate || terrain.busy" @click="terrain.calculate">Vista previa</BaseButton>
-                <BaseButton :disabled="!terrain.canCalculate || terrain.busy" :loading="terrain.isConverting" @click="terrain.calculateRemote">Convertir y calcular</BaseButton>
+                <BaseButton :disabled="!terrain.canCalculate || terrain.busy" :loading="terrain.isConverting" @click="convertAndCalculate">Convertir y calcular</BaseButton>
               </div>
             </fieldset>
           </div>
@@ -222,9 +288,9 @@ onBeforeUnmount(() => {
         <div class="save-panel">
           <p v-if="terrain.savedRecord && !terrain.isCurrentSaved" class="hint">Los cambios se guardarán como un cálculo nuevo. El registro {{ terrain.savedRecord.id }} se conserva.</p>
           <p v-if="terrain.saveUncertain" class="error">No se pudo confirmar el guardado. Comprueba si el cálculo ya existe antes de reintentar.</p>
-          <BaseButton v-if="terrain.saveUncertain" variant="outline" :disabled="terrain.busy" @click="terrain.saveUncertain = false; terrain.save()">Ya revisé los registros: reintentar</BaseButton>
+          <BaseButton v-if="terrain.saveUncertain" variant="outline" :disabled="terrain.busy" @click="retrySave">Ya revisé los registros: reintentar</BaseButton>
           <p v-if="terrain.error" class="error" role="alert">{{ terrain.error }}</p>
-          <BaseButton v-else block :disabled="terrain.busy || terrain.isCurrentSaved" :loading="terrain.isSaving" @click="terrain.save">
+          <BaseButton v-else block :disabled="terrain.busy || terrain.isCurrentSaved" :loading="terrain.isSaving" @click="saveTerrain">
             {{ terrain.isCurrentSaved ? 'Terreno guardado' : terrain.savedRecord ? 'Guardar como nuevo cálculo' : 'Guardar terreno' }}
           </BaseButton>
           <div v-if="terrain.savedRecord" class="actions">
@@ -260,6 +326,10 @@ onBeforeUnmount(() => {
 .terrenos-page { width: 100%; }
 .terrenos-page :deep(.page-header) { position: relative; margin-bottom: 1.25rem; }
 .terrenos-page :deep(.page-header)::after { content: ''; position: absolute; width: 4.5rem; height: 3px; left: 0; bottom: -2px; border-radius: var(--radius-full); background: var(--color-coral-decorative); }
+.legal-disclaimer { display: flex; align-items: flex-start; gap: .8rem; margin: 0 0 1rem; padding: .85rem 1rem; border: 1px solid var(--color-coral-decorative-mid); border-left: 4px solid var(--color-coral-decorative-strong); border-radius: var(--radius-sm); color: var(--color-text-body); background: var(--color-coral-decorative-soft); }
+.legal-disclaimer > span { display: grid; width: 1.8rem; height: 1.8rem; flex: 0 0 1.8rem; place-items: center; border-radius: 50%; color: var(--color-text-on-primary); background: var(--color-coral-decorative-strong); font-weight: 800; }
+.legal-disclaimer strong { color: var(--color-text-title); font-size: .82rem; }
+.legal-disclaimer p { margin: .2rem 0 0; color: var(--color-text-muted); font-size: .78rem; line-height: 1.5; }
 .details-card { border-top: 3px solid var(--color-coral-decorative) !important; background: linear-gradient(135deg, var(--color-bg-elevated) 0%, var(--color-bg-elevated) 76%, var(--color-coral-decorative-pale) 160%); }
 .details-card .panel-icon { border-color: var(--color-coral-decorative); color: var(--color-coral-decorative-strong); background: var(--color-coral-decorative-soft); }
 .result-card { border-top: 3px solid var(--color-coral-decorative-mid) !important; background: linear-gradient(135deg, var(--color-bg-card) 0%, var(--color-bg-card) 72%, var(--color-coral-decorative-pale) 155%); }

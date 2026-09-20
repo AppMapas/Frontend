@@ -12,7 +12,7 @@ const cleanBoundaries = (boundaries) => boundaries.map((side) => ({ ...side, mea
 
 export function terrainState() {
   return {
-    terrain: { clientDpi: '', userSystemId: '', terrainName: '', generalDescription: '', propertyType: 'RURAL' },
+    terrain: { clientDpi: '', userSystemId: '', terrainName: '', generalDescription: '', propertyType: 'PRIVADA', location: '' },
     vertices: [], boundaries: [], nextBoundaryId: 1, stage: 'drawing', activeTool: 'draw',
     selectedSideId: null, selectedVertexIndex: null, snapEnabled: true, result: null,
     street: street(), subdivisions: [], cutKind: 'street',
@@ -288,64 +288,47 @@ export function createTerrainDefinition(api) {
         } catch (error) { if (id === this.referenceRequestId) this.referenceError = error.message }
         finally { if (id === this.referenceRequestId) this.isLoadingReferences = false }
       },
-      async calculateRemote() {
-        if (this.busy || !this.canCalculate) return false
-        this.error = ''; this.isConverting = true
-        const revision = this.revision
-        try {
-          const sides = cleanBoundaries(this.boundaries)
-          if (sides.some((side) => !side.measurements.length)) throw new Error('Ingresa al menos una medida por lado.')
-          const measures = sides.flatMap((side) => side.measurements)
-          const converted = await api.convertUnits(measures)
-          if (revision !== this.revision) return false
-          if (!Array.isArray(converted) || converted.length !== measures.length) throw new Error('La conversión recibida está incompleta.')
-          converted.forEach((item, i) => {
-            const expectedMeters = toMeters(measures[i])
-            const conversionTolerance = Math.max(1e-8, expectedMeters * 1e-8)
-            if (!Number.isFinite(item.convertedValueMeters) || item.convertedValueMeters <= 0
-              || Number(item.originalValue) !== measures[i].value || item.unit !== measures[i].unit
-              || Math.abs(item.convertedValueMeters - expectedMeters) > conversionTolerance) {
-              throw new Error(`El servidor devolvió una conversión incompatible para la unidad ${measures[i].unit}.`)
-            }
-          })
-          let offset = 0
-          const lengths = sides.map((side) => side.measurements.reduce((sum) => sum + converted[offset++].convertedValueMeters, 0))
-          this.result = { ...reconstructPolygon(this.vertices, lengths), lengths }
-          this.convertedRevision = revision; this.stage = 'done'; this.activeTool = 'select'
-          return true
-        } catch (error) { this.error = error.message; return false }
-        finally { this.isConverting = false }
-      },
-      async save() {
-        if (this.busy || this.isCurrentSaved || this.saveUncertain) return
+      async submitCalculation(planImageBase64, loadingField) {
+        if (this.busy || this.isCurrentSaved || this.saveUncertain || !this.canCalculate) return false
         this.error = ''; this.notice = ''
+        if (!this.result) this.calculate()
+        const sides = cleanBoundaries(this.boundaries)
         try {
-          let missing = getCalculationValidationErrors(this.terrain, cleanBoundaries(this.boundaries))
+          let missing = getCalculationValidationErrors(this.terrain, sides)
           if (this.isLoadingReferences) missing.unshift('Espera a que se carguen los clientes y el usuario responsable.')
           if (!this.currentUser || this.terrain.userSystemId !== this.currentUser.dpi) {
             missing = missing.filter((message) => message !== 'No se pudo identificar el usuario responsable.')
-            missing.unshift('Carga el usuario responsable antes de guardar.')
+            missing.unshift('Carga el usuario responsable antes de calcular.')
           }
           if (this.terrain.clientDpi && !this.clients.some((client) => client.dpi === this.terrain.clientDpi)) missing.unshift('Selecciona un cliente registrado.')
-          if (!this.result) missing.unshift('Calcula el área antes de guardar.')
+          if (!this.result) missing.unshift('Completa las medidas para calcular el área.')
           if (missing.length) throw new Error(`Completa la información requerida:\n• ${[...new Set(missing)].join('\n• ')}`)
-          buildCalculationRequest(this.terrain, cleanBoundaries(this.boundaries))
-        } catch (error) { this.error = error.message; return }
-        if (this.convertedRevision !== this.revision && !await this.calculateRemote()) return
-        this.isSaving = true
+          buildCalculationRequest(this.terrain, sides, planImageBase64)
+        } catch (error) { this.error = error.message; return false }
+        this[loadingField] = true
         const signature = fingerprint(this), revision = this.revision
         try {
-          const record = await api.calculateAndSavePolygon(clone(this.terrain), cleanBoundaries(this.boundaries))
+          const record = await api.calculateAndSavePolygon(clone(this.terrain), sides, planImageBase64)
           if (!Number.isSafeInteger(record?.id) || record.id <= 0 || !Number.isFinite(record.totalAreaSquareMeters)) {
             this.saveUncertain = true; throw new Error('La respuesta no permite confirmar el registro. Verifica si se guardó antes de reintentar.')
           }
+          if (revision !== this.revision) return false
           this.savedRecord = record; this.savedFingerprint = signature; this.savedRevision = revision
           this.savedCalculationId = record.id
-          this.notice = `Cálculo ${record.id} guardado.`
+          this.convertedRevision = revision; this.stage = 'done'; this.activeTool = 'select'
+          this.notice = `Cálculo ${record.id} convertido, calculado y guardado.`
+          return true
         } catch (error) {
           if (!error.status || error.status >= 500) this.saveUncertain = true
           this.error = error.message
-        } finally { this.isSaving = false }
+          return false
+        } finally { this[loadingField] = false }
+      },
+      calculateRemote(planImageBase64) {
+        return this.submitCalculation(planImageBase64, 'isConverting')
+      },
+      save(planImageBase64) {
+        return this.submitCalculation(planImageBase64, 'isSaving')
       },
       async saveSplit() {
         if (this.busy || this.splitUncertain) return

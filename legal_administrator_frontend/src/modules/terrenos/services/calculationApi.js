@@ -32,12 +32,12 @@ export const calculationService = {
     return httpClient('/calculations/convert', { method: 'POST', body: measurements.map(normalizeMeasurement) })
   },
   // El backend actual almacena totalAreaSquareMeters = 0 en esta operación.
-  saveCalculation(terrain, boundaries) {
-    return httpClient('/calculations/save', { method: 'POST', body: buildCalculationRequest(terrain, boundaries) })
+  saveCalculation(terrain, boundaries, planImageBase64) {
+    return httpClient('/calculations/save', { method: 'POST', body: buildCalculationRequest(terrain, boundaries, planImageBase64) })
   },
   // El área devuelta es una estimación por longitudes, independiente del plano local.
-  calculateAndSavePolygon(terrain, boundaries) {
-    return httpClient('/calculations/polygon', { method: 'POST', body: buildCalculationRequest(terrain, boundaries) })
+  calculateAndSavePolygon(terrain, boundaries, planImageBase64) {
+    return httpClient('/calculations/polygon', { method: 'POST', body: buildCalculationRequest(terrain, boundaries, planImageBase64) })
   },
   splitPolygon(parentCalculationId, regions) {
     return httpClient('/calculations/split', { method: 'POST', body: buildSplitRequest(parentCalculationId, regions) })

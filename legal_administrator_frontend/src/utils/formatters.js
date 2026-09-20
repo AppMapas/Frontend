@@ -29,7 +29,11 @@ export function formatSquareVaras(value, decimals = 2) {
  */
 export function formatDate(dateString) {
   if (!dateString) return '—'
-  const date = new Date(dateString)
+  const dateParts = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(dateString))
+  const date = dateParts
+    ? new Date(Number(dateParts[1]), Number(dateParts[2]) - 1, Number(dateParts[3]))
+    : new Date(dateString)
+  if (Number.isNaN(date.getTime())) return '—'
   return date.toLocaleDateString('es-GT', {
     year: 'numeric',
     month: 'short',

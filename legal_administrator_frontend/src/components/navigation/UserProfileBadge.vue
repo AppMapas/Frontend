@@ -8,15 +8,15 @@ import IconChevronDown from '@/assets/icons/IconChevronDown.vue'
 const props = defineProps({
   userName: {
     type: String,
-    default: 'Administrador'
+    default: ''
   },
   userRole: {
     type: String,
-    default: 'Super Admin'
+    default: ''
   },
   userEmail: {
     type: String,
-    default: 'admin@legaladministrator.com'
+    default: ''
   },
   avatarColor: {
     type: String,

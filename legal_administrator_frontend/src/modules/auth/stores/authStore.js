@@ -1,16 +1,35 @@
 import { defineStore } from 'pinia'
 import { clearPersistedAuthSession, persistAuthSession, readPersistedAuthSession } from '@/shared/auth/authSessionStorage'
+import { usersApi } from '@/modules/users/services/usersApi'
 import { authApi } from '../services/authApi'
 
 let twoFactorSetupRequestId = 0
 
 function mapUser(response) {
   return {
+    dpi: response.dpi,
     email: response.email,
     firstName: response.firstName,
     lastName: response.lastName,
     name: [response.firstName, response.lastName].filter(Boolean).join(' '),
-    role: response.role,
+    role: response.role ?? response.roleName,
+    age: response.age,
+    maritalStatusName: response.maritalStatusName,
+    nationalityName: response.nationalityName,
+    createdAt: response.createdAt,
+  }
+}
+
+function getTokenSubject(token) {
+  if (typeof atob !== 'function' || typeof token !== 'string') return ''
+  try {
+    const encodedPayload = token.split('.')[1]
+    if (!encodedPayload) return ''
+    const base64 = encodedPayload.replace(/-/g, '+').replace(/_/g, '/')
+    const payload = JSON.parse(atob(base64.padEnd(Math.ceil(base64.length / 4) * 4, '=')))
+    return typeof payload.sub === 'string' ? payload.sub.trim() : ''
+  } catch {
+    return ''
   }
 }
 
@@ -43,6 +62,8 @@ export const useAuthStore = defineStore('auth', {
       twoFactorSetup: null,
       isTwoFactorLoading: false,
       twoFactorError: null,
+      isProfileLoading: false,
+      profileError: null,
     }
   },
 
@@ -116,6 +137,35 @@ export const useAuthStore = defineStore('auth', {
         this.logout()
         throw error
       }
+    },
+
+    async loadCurrentUser() {
+      if (!this.accessToken) throw new Error('No existe una sesión autenticada.')
+
+      this.isProfileLoading = true
+      this.profileError = null
+      try {
+        const authenticatedEmail = getTokenSubject(this.accessToken) || this.user?.email
+        const response = await usersApi.getCurrentByEmail(authenticatedEmail)
+        this.user = mapUser(response)
+        this.twoFactorEnabled = getTwoFactorStatus(response, this.twoFactorEnabled)
+        this.persistSession()
+        return this.user
+      } catch (error) {
+        this.profileError = error?.message || 'No fue posible cargar el perfil del usuario.'
+        throw error
+      } finally {
+        this.isProfileLoading = false
+      }
+    },
+
+    async updatePassword({ currentPassword, newPassword, twoFactorCode = '' }) {
+      if (!this.user?.dpi) await this.loadCurrentUser()
+      return usersApi.updatePassword(this.user?.dpi, {
+        currentPassword,
+        newPassword,
+        twoFactorCode: this.twoFactorEnabled ? validateTwoFactorCode(twoFactorCode) : null,
+      })
     },
 
     async beginTwoFactorSetup() {
@@ -220,6 +270,7 @@ export const useAuthStore = defineStore('auth', {
       this.accessToken = null
       this.refreshToken = null
       this.twoFactorEnabled = false
+      this.profileError = null
       this.cancelTwoFactorSetup()
       clearPersistedAuthSession()
     },

@@ -61,8 +61,12 @@ function searchClient() {
     </label>
     <label>Tipo de propiedad
       <select :value="terrain.propertyType" @change="$emit('update', 'propertyType', $event.target.value)">
+        <option value="PRIVADA">Privada</option><option value="PUBLICA">Pública</option>
         <option value="RURAL">Rural</option><option value="URBANA">Urbana</option>
       </select>
+    </label>
+    <label>Ubicación del terreno
+      <input :value="terrain.location" placeholder="Dirección, zona, municipio y departamento" @input="$emit('update', 'location', $event.target.value)">
     </label>
     <label class="description">Descripción
       <textarea :value="terrain.generalDescription" rows="2" placeholder="Ubicación y referencias generales" @input="$emit('update', 'generalDescription', $event.target.value)" />
