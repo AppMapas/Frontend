@@ -21,23 +21,24 @@ export const authApi = {
     })
   },
 
-  setupTwoFactor() {
+  setupTwoFactor(email) {
     return httpClient(`${AUTH_ENDPOINT}/2fa/setup`, {
       method: 'POST',
+      body: { email },
     })
   },
 
-  enableTwoFactor(code) {
+  enableTwoFactor(code, email) {
     return httpClient(`${AUTH_ENDPOINT}/2fa/enable`, {
       method: 'POST',
-      body: { code },
+      body: { email, code },
     })
   },
 
-  disableTwoFactor(code) {
+  disableTwoFactor(code, email) {
     return httpClient(`${AUTH_ENDPOINT}/2fa/disable`, {
       method: 'POST',
-      body: { code },
+      body: { email, code },
     })
   },
 
