@@ -1,6 +1,8 @@
 import { interceptAuthResponse } from '../auth/authSessionStorage.js'
 
-const DEFAULT_API_URL = 'http://localhost:8080/api/v1'
+// En producción las solicitudes pasan por el proxy definido en netlify.toml.
+// Esto evita que un build publicado conserve localhost si no recibió VITE_API_URL.
+const DEFAULT_API_URL = import.meta.env.PROD ? '/api/v1' : 'http://localhost:8080/api/v1'
 
 export const API_BASE_URL = (import.meta.env?.VITE_API_URL || DEFAULT_API_URL).replace(/\/+$/, '')
 

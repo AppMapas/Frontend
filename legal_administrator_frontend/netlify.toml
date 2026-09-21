@@ -1,0 +1,23 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "22.18.0"
+  NPM_FLAGS = "--include=optional"
+
+# Proxy del frontend hacia el backend expuesto por ngrok.
+[[redirects]]
+  from = "/api/v1/*"
+  to = "https://morris-electrotechnic-dalia.ngrok-free.dev/api/v1/:splat"
+  status = 200
+  force = true
+
+  [redirects.headers]
+    "ngrok-skip-browser-warning" = "true"
+
+# Fallback de Vue Router para permitir abrir o recargar rutas internas.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

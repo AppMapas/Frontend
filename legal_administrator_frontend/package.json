@@ -19,6 +19,10 @@
     "vite": "^8.1.5",
     "vite-plugin-vue-devtools": "^8.1.5"
   },
+  "optionalDependencies": {
+    "@rolldown/binding-linux-x64-gnu": "1.2.8",
+    "lightningcss-linux-x64-gnu": "1.33.0"
+  },
   "engines": {
     "node": "^22.18.0 || >=24.12.0"
   }
