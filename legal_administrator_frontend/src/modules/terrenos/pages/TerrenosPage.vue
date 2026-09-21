@@ -15,6 +15,7 @@ import StreetEditor from '../components/StreetEditor.vue'
 import { useTerrainStore } from '../stores/terrainStore.js'
 import { useAuthStore } from '@/modules/auth/stores/authStore'
 import { positiveDraftMeasurements, toMeters, VARA_TO_METERS } from '../domain/units.js'
+import { createTerrainPdf } from '../domain/terrainPdf.js'
 
 const terrain = useTerrainStore()
 const auth = useAuthStore()
@@ -22,6 +23,7 @@ const canvas = ref(null)
 const pdfPreviewUrl = ref('')
 const pdfPreviewBlob = ref(null)
 const pdfPreviewId = ref(null)
+const pdfPreviewKind = ref('')
 const pdfRequestAction = ref('')
 const selectedSideIndex = computed(() => terrain.boundaries.findIndex((side) => side.id === terrain.selectedSideId))
 const splitSaved = computed(() => terrain.savedSplitFingerprint === JSON.stringify([terrain.savedRecord?.id, terrain.subdivisions]))
@@ -106,6 +108,26 @@ function download(blob, name) {
   document.body.append(link); link.click(); link.remove()
   setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
+function buildLocalPdf() {
+  return createTerrainPdf({
+    terrain: terrain.terrain, vertices: terrain.result.vertices, boundaries: terrain.boundaries,
+    regions: terrain.subdivisions, result: terrain.result,
+    serverRecord: terrain.isCurrentSaved ? terrain.savedRecord : null,
+  })
+}
+function localPdf() {
+  try {
+    download(buildLocalPdf(), 'plano-terreno.pdf')
+  } catch (error) { terrain.error = error.message }
+}
+function previewLocalPdf() {
+  try {
+    closePdfPreview()
+    pdfPreviewBlob.value = buildLocalPdf()
+    pdfPreviewKind.value = 'local'
+    pdfPreviewUrl.value = URL.createObjectURL(pdfPreviewBlob.value)
+  } catch (error) { terrain.error = error.message }
+}
 async function serverPdf(id) {
   pdfRequestAction.value = 'download'
   try {
@@ -120,6 +142,7 @@ function closePdfPreview() {
   pdfPreviewUrl.value = ''
   pdfPreviewBlob.value = null
   pdfPreviewId.value = null
+  pdfPreviewKind.value = ''
 }
 async function previewServerPdf(id) {
   pdfRequestAction.value = 'preview'
@@ -129,15 +152,18 @@ async function previewServerPdf(id) {
     closePdfPreview()
     pdfPreviewBlob.value = blob
     pdfPreviewId.value = id
+    pdfPreviewKind.value = 'server'
     pdfPreviewUrl.value = URL.createObjectURL(blob)
   } finally {
     pdfRequestAction.value = ''
   }
 }
 function downloadPreviewedPdf() {
-  if (pdfPreviewBlob.value && pdfPreviewId.value) {
-    download(pdfPreviewBlob.value, 'reporte-servidor-' + pdfPreviewId.value + '.pdf')
-  }
+  if (!pdfPreviewBlob.value) return
+  const name = pdfPreviewKind.value === 'local' || !pdfPreviewId.value
+    ? 'plano-terreno.pdf'
+    : 'reporte-servidor-' + pdfPreviewId.value + '.pdf'
+  download(pdfPreviewBlob.value, name)
 }
 function keyboard(event) {
   if (event.target.closest('input, textarea, select, [contenteditable="true"]') || terrain.busy) return
@@ -290,12 +316,14 @@ onBeforeUnmount(() => {
           <p v-if="terrain.saveUncertain" class="error">No se pudo confirmar el guardado. Comprueba si el cálculo ya existe antes de reintentar.</p>
           <BaseButton v-if="terrain.saveUncertain" variant="outline" :disabled="terrain.busy" @click="retrySave">Ya revisé los registros: reintentar</BaseButton>
           <p v-if="terrain.error" class="error" role="alert">{{ terrain.error }}</p>
-          <BaseButton v-else block :disabled="terrain.busy || terrain.isCurrentSaved" :loading="terrain.isSaving" @click="saveTerrain">
+          <!-- <BaseButton v-else block :disabled="terrain.busy || terrain.isCurrentSaved" :loading="terrain.isSaving" @click="saveTerrain">
             {{ terrain.isCurrentSaved ? 'Terreno guardado' : terrain.savedRecord ? 'Guardar como nuevo cálculo' : 'Guardar terreno' }}
-          </BaseButton>
-          <div v-if="terrain.savedRecord" class="actions">
-            <BaseButton variant="outline" :loading="terrain.downloadingId === terrain.savedRecord.id && pdfRequestAction === 'preview'" :disabled="terrain.downloadingId !== null" @click="previewServerPdf(terrain.savedRecord.id)">Previsualizar PDF</BaseButton>
-            <BaseButton variant="outline" :loading="terrain.downloadingId === terrain.savedRecord.id && pdfRequestAction === 'download'" :disabled="terrain.downloadingId !== null" @click="serverPdf(terrain.savedRecord.id)">Descargar PDF</BaseButton>
+          </BaseButton> -->
+          <div class="actions">
+            <BaseButton variant="outline" :disabled="terrain.busy || !terrain.result" @click="previewLocalPdf">Previsualizar PDF del plano</BaseButton>
+            <BaseButton variant="outline" :disabled="terrain.busy || !terrain.result" @click="localPdf">Descargar PDF del plano</BaseButton>
+            <BaseButton v-if="terrain.savedRecord" variant="outline" :loading="terrain.downloadingId === terrain.savedRecord.id && pdfRequestAction === 'preview'" :disabled="terrain.downloadingId !== null" @click="previewServerPdf(terrain.savedRecord.id)">Previsualizar PDF</BaseButton>
+            <BaseButton v-if="terrain.savedRecord" variant="outline" :loading="terrain.downloadingId === terrain.savedRecord.id && pdfRequestAction === 'download'" :disabled="terrain.downloadingId !== null" @click="serverPdf(terrain.savedRecord.id)">Descargar PDF</BaseButton>
           </div>
           <p class="hint">El PDF del plano conserva tu dibujo. El reporte del servidor contiene su cálculo registrado y un esquema de referencia.</p>
         </div>
@@ -307,9 +335,10 @@ onBeforeUnmount(() => {
     <div class="pdf-preview">
       <header>
         <div>
-          <p>Reporte generado por el servidor</p>
+          <p>{{ pdfPreviewKind === 'local' ? 'Reporte generado localmente' : 'Reporte generado por el servidor' }}</p>
           <h2 id="pdf-preview-title">Previsualización del plano</h2>
-          <span id="pdf-preview-description">Cálculo registrado {{ pdfPreviewId }}</span>
+          <span v-if="pdfPreviewKind === 'local'" id="pdf-preview-description">Plano generado en el navegador</span>
+          <span v-else id="pdf-preview-description">Cálculo registrado {{ pdfPreviewId }}</span>
         </div>
         <button type="button" aria-label="Cerrar previsualización" @click="closePdfPreview">×</button>
       </header>
