@@ -31,14 +31,15 @@ export const calculationService = {
     if (!Array.isArray(measurements) || !measurements.length) throw new Error('Incluye al menos una medida.')
     return httpClient('/calculations/convert', { method: 'POST', body: measurements.map(normalizeMeasurement) })
   },
-  // El backend actual almacena totalAreaSquareMeters = 0 en esta operación.
-  saveCalculation(terrain, boundaries, planImageBase64) {
-    return httpClient('/calculations/save', { method: 'POST', body: buildCalculationRequest(terrain, boundaries, planImageBase64) })
+  // El área devuelta es una estimación por longitudes, independiente del plano local.
+  saveCalculation(terrain, boundaries) {
+    return httpClient('/calculations/save', { method: 'POST', body: buildCalculationRequest(terrain, boundaries) })
   },
   // El área devuelta es una estimación por longitudes, independiente del plano local.
-  calculateAndSavePolygon(terrain, boundaries, planImageBase64) {
-    return httpClient('/calculations/polygon', { method: 'POST', body: buildCalculationRequest(terrain, boundaries, planImageBase64) })
+  calculateAndSavePolygon(terrain, boundaries) {
+    return httpClient('/calculations/polygon', { method: 'POST', body: buildCalculationRequest(terrain, boundaries) })
   },
+  
   splitPolygon(parentCalculationId, regions) {
     return httpClient('/calculations/split', { method: 'POST', body: buildSplitRequest(parentCalculationId, regions) })
   },
