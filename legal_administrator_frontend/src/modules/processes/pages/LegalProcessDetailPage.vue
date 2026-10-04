@@ -14,6 +14,7 @@ import BaseBadge from '@/components/common/BaseBadge.vue'
 import BaseModal from '@/components/common/BaseModal.vue'
 import LoadingCards from '@/components/common/LoadingCards.vue'
 import LeaveConfirmation from '@/components/common/LeaveConfirmation.vue'
+import CaseDocuments from '../components/CaseDocuments.vue'
 
 const route = useRoute()
 const cases = useLegalProcessStore()
@@ -26,12 +27,16 @@ const savedNotes = ref('')
 const loading = ref(true)
 const failed = ref(false)
 const busy = ref(false)
+const documentState = ref({ pending: false, busy: false })
 const reloadOpen = ref(false)
 let loadNumber = 0
 const record = computed(() => detail.value?.caseData)
 const title = computed(() => record.value?.caseCode || 'Detalle del expediente')
 const dirty = computed(() => !loading.value && notes.value !== savedNotes.value)
-const leave = useLeaveConfirmation(dirty, busy)
+const leave = useLeaveConfirmation(
+  computed(() => dirty.value || documentState.value.pending),
+  computed(() => busy.value || documentState.value.busy),
+)
 async function load() {
   const current = ++loadNumber
   loading.value = true
@@ -84,7 +89,8 @@ async function save() {
   }
 }
 function requestReload() {
-  if (dirty.value) reloadOpen.value = true
+  if (documentState.value.busy) return
+  if (dirty.value || documentState.value.pending) reloadOpen.value = true
   else load()
 }
 async function reload() {
@@ -98,7 +104,7 @@ onBeforeUnmount(() => { loadNumber += 1 })
   <div class="office-page">
     <PageHeader eyebrow="Expediente del despacho" :title="title" :subtitle="record?.processTypeName || ''">
       <template #actions><RouterLink class="link-button" :to="{ name: 'legal-processes' }">Volver a expedientes</RouterLink>
-        <BaseButton variant="outline" :disabled="busy" :loading="loading" @click="requestReload">Actualizar</BaseButton></template>
+        <BaseButton variant="outline" :disabled="busy || documentState.busy" :loading="loading" @click="requestReload">Actualizar</BaseButton></template>
     </PageHeader>
     <LoadingCards v-if="loading" label="Cargando expediente y requisitos" />
     <BaseCard v-else-if="failed" class="empty-state"><h2>Expediente pendiente de cargar</h2><BaseButton @click="load">Reintentar carga</BaseButton></BaseCard>
@@ -138,6 +144,7 @@ onBeforeUnmount(() => { loadNumber += 1 })
           </li>
         </ol>
       </BaseCard>
+      <CaseDocuments :key="record.id" :case-id="record.id" :active="record.active" @state="documentState = $event" />
       <form novalidate @submit.prevent="save">
         <BaseCard class="form-section">
           <h2>Observaciones</h2>
@@ -150,7 +157,7 @@ onBeforeUnmount(() => { loadNumber += 1 })
     </div>
     <BaseModal :open="reloadOpen" title-id="reload-case-title" @close="reloadOpen = false">
       <div class="confirm-content"><h2 id="reload-case-title">Recargar expediente</h2>
-        <p>Se reemplazarán las observaciones sin guardar por los datos actuales del servidor.</p>
+        <p>Se perderán las observaciones sin guardar y la selección de archivos pendientes. Los documentos ya guardados se conservarán.</p>
         <div class="actions"><BaseButton variant="outline" @click="reloadOpen = false">Conservar cambios</BaseButton><BaseButton @click="reload">Recargar</BaseButton></div>
       </div>
     </BaseModal>
