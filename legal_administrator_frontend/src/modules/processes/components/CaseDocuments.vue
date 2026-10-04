@@ -4,7 +4,7 @@ import BaseCard from '@/components/common/BaseCard.vue'
 import BaseButton from '@/components/common/BaseButton.vue'
 import BaseModal from '@/components/common/BaseModal.vue'
 import { caseDocumentsApi } from '../services/caseDocumentsApi.js'
-import { documentFileError, formatFileSize } from '../domain/documentFiles.js'
+import { documentFileError, formatFileSize, isPermanentUploadError } from '../domain/documentFiles.js'
 import { formatTimestamp } from '../domain/caseRegistration.js'
 
 const props = defineProps({ caseId: { type: Number, required: true }, active: Boolean })
@@ -21,8 +21,10 @@ const preview = ref(null)
 const filesInput = ref(null)
 const galleryInput = ref(null)
 const cameraInput = ref(null)
-const pending = computed(() => queue.value.some(item => item.status !== 'saved'))
-const canUpload = computed(() => queue.value.some(item => !item.validation && item.status !== 'saved'))
+// Solo los archivos que el servidor todavía podría aceptar cuentan como pendientes:
+// los inválidos o ya rechazados se muestran con su error, pero no bloquean la navegación.
+const isWaiting = (item) => !item.validation && item.status !== 'saved' && item.status !== 'rejected'
+const pending = computed(() => queue.value.some(isWaiting))
 let alive = true
 let selectionId = 0
 const downloadUrls = new Map()
@@ -61,7 +63,7 @@ async function upload() {
   try {
     for (const item of queue.value) {
       if (!alive) break
-      if (item.validation || item.status === 'saved') continue
+      if (item.validation || item.status === 'saved' || item.status === 'rejected') continue
       item.status = 'uploading'
       item.error = ''
       try {
@@ -71,11 +73,18 @@ async function upload() {
         item.status = 'saved'
         saved += 1
       } catch (cause) {
-        item.status = 'failed'
+        item.status = isPermanentUploadError(cause) ? 'rejected' : 'failed'
         item.error = cause.message || 'No fue posible guardar este documento.'
       }
     }
-    if (alive) feedback.value = `${saved} documento(s) guardado(s).${pending.value ? ' Revisa los archivos pendientes.' : ''}`
+    if (!alive) return
+    const remaining = pending.value
+    if (saved > 0) {
+      const summary = saved === 1 ? '1 documento guardado.' : `${saved} documentos guardados.`
+      feedback.value = `${summary}${remaining ? ' Revisa los archivos pendientes.' : ''}`
+    } else {
+      feedback.value = remaining ? 'No se guardaron los archivos pendientes. Revisa los mensajes.' : ''
+    }
   } finally {
     uploading.value = false
   }
@@ -153,7 +162,7 @@ onBeforeUnmount(() => {
         </li>
       </ul>
       <div v-if="queue.length" class="actions">
-        <BaseButton :disabled="!canUpload || loading" :loading="uploading" @click="upload">Guardar archivos pendientes</BaseButton>
+        <BaseButton :disabled="!pending || loading" :loading="uploading" @click="upload">Guardar archivos pendientes</BaseButton>
         <BaseButton variant="outline" :disabled="uploading" @click="queue = []">Limpiar selección</BaseButton>
       </div>
       <p v-if="feedback" role="status">{{ feedback }}</p>
@@ -191,7 +200,7 @@ onBeforeUnmount(() => {
 .document-list li { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: .75rem; padding: 1rem; border: 1px solid var(--color-border-medium); border-radius: var(--radius-sm); }
 .document-info { display: grid; gap: .35rem; min-width: 0; overflow-wrap: anywhere; }
 .document-info span { font-size: .85rem; }
-.document-error { color: #a22c26; overflow-wrap: anywhere; }
+.document-error { color: var(--color-danger-strong); overflow-wrap: anywhere; }
 .document-preview { display: grid; gap: 1rem; padding: 1.25rem; }
 .document-preview h2 { overflow-wrap: anywhere; min-width: 0; }
 .document-preview img { max-width: 100%; max-height: 65vh; object-fit: contain; justify-self: center; }

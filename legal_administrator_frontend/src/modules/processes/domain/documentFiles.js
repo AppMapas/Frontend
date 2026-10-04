@@ -13,6 +13,15 @@ export function documentFileError(file, policy) {
   return ''
 }
 
+// Un rechazo del servidor (4xx) no mejora reenviando los mismos bytes: el archivo
+// debe volver a seleccionarse. Los errores de red o del servidor (5xx) sí son reintentables.
+export function isPermanentUploadError(error) {
+  const status = Number(error?.status ?? 0)
+  if (!status || status < 400) return false
+  if (status === 408 || status === 429) return false
+  return status < 500
+}
+
 export function formatFileSize(size) {
   if (size < 1024) return `${size} B`
   if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KiB`
