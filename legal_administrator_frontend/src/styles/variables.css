@@ -70,6 +70,7 @@
   /* Bordes & Separadores */
   --color-border-subtle: rgba(140, 170, 162, 0.22);
   --color-border-medium: rgba(140, 170, 162, 0.45);
+  --color-border-control: var(--color-text-muted);
   --color-border-focus: var(--color-teal);
   --color-divider: #E5EBE9;
 
@@ -175,6 +176,7 @@
    --color-accent-soft-bg: rgba(90, 155, 149, 0.14);
    --color-border-subtle: rgba(140, 170, 162, 0.20);
    --color-border-medium: rgba(140, 170, 162, 0.42);
+   --color-border-control: var(--color-text-muted);
    --color-border-focus: #78B8B2;
    --color-divider: rgba(140, 170, 162, 0.26);
 
