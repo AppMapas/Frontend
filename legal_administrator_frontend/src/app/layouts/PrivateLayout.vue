@@ -1,12 +1,39 @@
 <script setup>
 import { RouterView } from 'vue-router'
 import AppNavbar from '@/components/navigation/AppNavbar.vue'
+import { computed, onBeforeUnmount, watch } from 'vue'
+import { useAuthStore } from '@/modules/auth/stores/authStore'
+import { useRoute } from 'vue-router'
+import FloatingNotifications from '@/components/common/FloatingNotifications.vue'
+import { useClientStore } from '@/modules/users/stores/clientStore.js'
+import { useLegalProcessStore } from '@/modules/processes/stores/legalProcessStore.js'
+import { useNotificationStore } from '@/shared/notifications/notificationStore.js'
+
+const clients = useClientStore()
+const cases = useLegalProcessStore()
+const notifications = useNotificationStore()
+const route = useRoute()
+const auth = useAuthStore()
+const userName = computed(() => auth.user?.name
+  || [auth.user?.firstName, auth.user?.lastName].filter(Boolean).join(' ') || 'Mi cuenta')
+watch(() => route.fullPath, () => {
+  if (notifications.current) {
+    notifications.current.action = null
+    notifications.current.actionLabel = ''
+  }
+})
+onBeforeUnmount(() => {
+  clients.resetSession()
+  cases.resetSession()
+  notifications.close()
+})
 </script>
 
 <template>
   <div class="layout-container">
     <!-- Navbar principal -->
-    <AppNavbar />
+    <AppNavbar :user-name="userName" />
+    <FloatingNotifications />
 
     <!-- Contenido dinámico de las páginas -->
     <main class="main-content">

@@ -3,11 +3,12 @@ import { authRoutes } from '@/modules/auth/routes'
 import { landingRoutes } from '@/modules/landing/routes'
 import { terrainRoutes } from '@/modules/terrenos/routes'
 import { processCatalogRoutes } from '@/modules/processes/routes'
+import { legalProcessRoutes } from '@/modules/processes/legalProcessRoutes'
+import { clientRoutes } from '@/modules/users/routes'
 
 const PrivateLayout = () => import('@/app/layouts/PrivateLayout.vue')
 const HistorialPage = () => import('@/pages/HistorialPage.vue')
 const ReportesPage = () => import('@/pages/ReportesPage.vue')
-const ClientesPage = () => import('@/pages/ClientesPage.vue')
 const PerfilPage = () => import('@/pages/PerfilPage.vue')
 const NotFoundPage = () => import('@/pages/NotFoundPage.vue')
 
@@ -25,6 +26,8 @@ const routes = [
       },
       ...terrainRoutes,
       ...processCatalogRoutes,
+      ...legalProcessRoutes,
+      ...clientRoutes,
       {
         path: '/formulario',
         redirect: '/terrenos',
@@ -40,12 +43,6 @@ const routes = [
         name: 'reportes',
         component: ReportesPage,
         meta: { title: 'Reportes y Estadísticas — LegalAdministrator' },
-      },
-      {
-        path: '/clientes',
-        name: 'clientes',
-        component: ClientesPage,
-        meta: { title: 'Directorio de Clientes — LegalAdministrator' },
       },
       {
         path: '/perfil',

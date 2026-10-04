@@ -77,7 +77,7 @@ async function publish(processType) {
   success.value = ''
   try {
     await catalog.publishProcessType(processType.id, processType.version)
-    success.value = 'Trámite publicado. La plantilla está lista para asociarse a expedientes cuando se implemente ese flujo.'
+    success.value = 'Trámite publicado. Ya puedes utilizarlo para abrir expedientes de clientes.'
   } catch (error) {
     actionError.value = catalogErrorMessage(error, 'No fue posible publicar el trámite.')
     if (error.status === 409) await refreshAfterConflict()

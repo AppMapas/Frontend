@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, RouterLink } from 'vue-router'
 import NavLink from './NavLink.vue'
 import UserProfileBadge from './UserProfileBadge.vue'
@@ -11,6 +11,7 @@ import IconHistory from '@/assets/icons/IconHistory.vue'
 import IconReport from '@/assets/icons/IconReport.vue'
 import IconUsers from '@/assets/icons/IconUsers.vue'
 import IconChecklist from '@/assets/icons/IconChecklist.vue'
+import { useAuthStore } from '@/modules/auth/stores/authStore'
 
 const props = defineProps({
   brandName: {
@@ -23,7 +24,8 @@ const props = defineProps({
       { path: '/terrenos', label: 'Terrenos', icon: IconForm },
       { path: '/historial', label: 'Historial', icon: IconHistory },
       { path: '/reportes', label: 'Reportes', icon: IconReport },
-      { path: '/clientes', label: 'Clientes', icon: IconUsers },
+      { path: '/clientes', label: 'Clientes', icon: IconUsers, roles: ['Abogada', 'Administrador'] },
+      { path: '/expedientes', label: 'Expedientes', icon: IconHistory, roles: ['Abogada', 'Administrador'] },
       { path: '/tramites', label: 'Trámites', icon: IconChecklist }
     ]
   },
@@ -34,6 +36,9 @@ const props = defineProps({
 })
 
 const route = useRoute()
+const authStore = useAuthStore()
+const visibleNavItems = computed(() => props.navItems.filter(item =>
+  !item.roles || item.roles.includes(authStore.user?.role)))
 const isMobileMenuOpen = ref(false)
 const isDarkMode = ref(false)
 
@@ -82,7 +87,7 @@ onMounted(() => {
       <!-- 2. Navegación Desktop -->
       <nav class="navbar-nav desktop-nav" aria-label="Navegación principal">
         <ul class="nav-list">
-          <li v-for="item in navItems" :key="item.path" class="nav-item">
+          <li v-for="item in visibleNavItems" :key="item.path" class="nav-item">
             <NavLink :to="item.path" :label="item.label" />
           </li>
         </ul>
@@ -172,7 +177,7 @@ onMounted(() => {
 
         <nav class="drawer-nav" aria-label="Navegación móvil">
           <ul class="drawer-list">
-            <li v-for="item in navItems" :key="item.path">
+            <li v-for="item in visibleNavItems" :key="item.path">
               <NavLink :to="item.path" :label="item.label" :is-mobile="true">
                 <template #icon>
                   <component :is="item.icon" :size="20" />
@@ -464,7 +469,7 @@ onMounted(() => {
 /* ==========================================================================
    MEDIA QUERIES (DESKTOP / TABLET / MOBILE)
    ========================================================================== */
-@media (max-width: 1240px) {
+@media (max-width: 1360px) {
   .desktop-nav {
     display: none;
   }
