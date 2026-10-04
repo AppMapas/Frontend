@@ -57,6 +57,19 @@ export const useProcessCatalogStore = defineStore('processCatalog', {
       return processType
     },
 
+    getStages(id) {
+      return processCatalogApi.getStages(id)
+    },
+
+    async saveStages(id, payload) {
+      const saved = await processCatalogApi.saveStages(id, payload)
+      this.processTypes = this.processTypes.map((current) => {
+        if (current.id !== id) return current
+        return { ...current, version: saved.version }
+      })
+      return saved
+    },
+
     async saveRequirement(id, payload) {
       let saved
       if (id === null) {

@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
-import { onBeforeRouteLeave, RouterLink, useRoute, useRouter } from 'vue-router'
+import { onBeforeRouteLeave, RouterLink, useRoute } from 'vue-router'
 import { useAuthStore } from '@/modules/auth/stores/authStore'
 import { useProcessCatalogStore } from '../stores/processCatalogStore'
 import PageHeader from '@/components/common/PageHeader.vue'
@@ -15,7 +15,6 @@ import RequirementForm from '../components/RequirementForm.vue'
 import ProcessRequirementRow from '../components/ProcessRequirementRow.vue'
 
 const route = useRoute()
-const router = useRouter()
 const authStore = useAuthStore()
 const catalog = useProcessCatalogStore()
 
@@ -242,6 +241,10 @@ async function save() {
 
 async function publish() {
   if (readonly.value || busy.value) return
+  if (currentId.value === null) {
+    error.value = 'Guarda el trámite y configura sus etapas antes de publicarlo.'
+    return
+  }
   if (!draft.requirements.length) {
     error.value = 'Agrega al menos un requisito antes de publicar.'
     return
@@ -250,14 +253,15 @@ async function publish() {
   error.value = ''
   success.value = ''
   try {
-    const wasCreating = currentId.value === null
+    const configuration = await catalog.getStages(currentId.value)
+    if (!configuration.stages.length) {
+      error.value = 'Configura y guarda las etapas antes de publicar el trámite.'
+      return
+    }
     const saved = await persistDraft()
     if (!saved) return
     const published = await catalog.publishProcessType(saved.id, saved.version)
     setDraft(published)
-    if (wasCreating) {
-      await router.replace({ name: 'process-type-edit', params: { id: published.id } })
-    }
     success.value = 'Trámite publicado. Su configuración está lista para futuros expedientes.'
   } catch (requestError) {
     error.value = catalogErrorMessage(requestError, 'No fue posible publicar el trámite.')
@@ -447,6 +451,11 @@ onMounted(loadEditor)
             />
           </div>
         </BaseCard>
+        <BaseCard v-if="currentId !== null" class="requirements-card">
+          <div class="card-heading"><div><p class="eyebrow">Seguimiento del expediente</p><h2>Etapas y transiciones</h2>
+            <p class="hint">Configura las fases por las que puede pasar este tipo de trámite.</p></div></div>
+          <RouterLink class="back-link" :to="{ name: 'process-type-stages', params: { id: currentId } }">Configurar etapas →</RouterLink>
+        </BaseCard>
       </div>
 
       <aside class="editor-sidebar">
@@ -458,13 +467,13 @@ onMounted(loadEditor)
             <div><dt>Requisitos</dt><dd>{{ draft.requirements.length }}</dd></div>
             <div><dt>Con archivo</dt><dd>{{ draft.requirements.filter((item) => item.requiresDocument).length }}</dd></div>
           </dl>
-          <p class="sidebar-hint">Publicar habilita la plantilla para su uso en expedientes cuando se implemente esa etapa.</p>
+          <p class="sidebar-hint">Guarda este trámite y configura sus etapas antes de publicarlo para abrir expedientes.</p>
           <div v-if="canManage && draft.status !== 'INACTIVE'" class="sidebar-actions">
             <BaseButton type="submit" :loading="busy" block>{{ saveActionLabel }}</BaseButton>
             <BaseButton
               v-if="draft.status === 'DRAFT'"
               variant="outline"
-              :disabled="busy || !draft.requirements.length"
+              :disabled="busy || !draft.requirements.length || currentId === null"
               block
               @click="publish"
             >Guardar y publicar</BaseButton>

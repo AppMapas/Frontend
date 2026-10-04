@@ -20,6 +20,15 @@ export const legalProcessApi = {
   async update(id, payload) {
     return expectDetail(await httpClient('/legal-processes/' + encodeURIComponent(id), { method: 'PUT', body: payload }))
   },
+  async transitionStage(id, payload) {
+    const detail = await httpClient('/legal-processes/' + encodeURIComponent(id) + '/stage-transitions', {
+      method: 'POST', body: payload,
+    })
+    if (!detail?.timeline || !Array.isArray(detail.timeline.events)) {
+      throw new ApiError('El servidor no confirmó la nueva etapa.', { status: 200 })
+    }
+    return expectDetail(detail)
+  },
   async publishedTemplates() {
     const result = await httpClient('/process-types?status=PUBLISHED')
     if (!Array.isArray(result)) throw new Error('El servidor no devolvió los trámites publicados.')

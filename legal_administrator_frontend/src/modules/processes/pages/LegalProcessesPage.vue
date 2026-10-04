@@ -49,6 +49,8 @@ const { refresh } = useDirectorySearch(filters, cases)
           <BaseBadge variant="teal">{{ statusLabel(item.currentStatus) }}</BaseBadge></div>
         <dl class="record-data">
           <div><dt>Trámite</dt><dd>{{ item.processTypeName }}</dd></div>
+          <div><dt>Etapa legal</dt><dd><BaseBadge v-if="item.currentStageName" variant="sage">{{ item.currentStageName }}</BaseBadge>
+            <span v-else>Sin etapa registrada</span></dd></div>
           <div><dt>DPI del cliente</dt><dd class="mono">{{ item.clientDpi }}</dd></div>
           <div><dt>Fecha de apertura</dt><dd>{{ formatTimestamp(item.openedAt) }}</dd></div>
         </dl>

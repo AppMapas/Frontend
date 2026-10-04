@@ -76,6 +76,11 @@ async function publish(processType) {
   actionError.value = ''
   success.value = ''
   try {
+    const configuration = await catalog.getStages(processType.id)
+    if (!configuration.stages.length) {
+      actionError.value = 'Configura y guarda las etapas de este trámite antes de publicarlo.'
+      return
+    }
     await catalog.publishProcessType(processType.id, processType.version)
     success.value = 'Trámite publicado. Ya puedes utilizarlo para abrir expedientes de clientes.'
   } catch (error) {
@@ -195,6 +200,7 @@ onMounted(loadProcessTypes)
           <RouterLink class="outline-link" :to="{ name: 'process-type-edit', params: { id: processType.id } }">
             {{ detailActionLabel(processType) }}
           </RouterLink>
+          <RouterLink class="outline-link" :to="{ name: 'process-type-stages', params: { id: processType.id } }">Etapas</RouterLink>
           <BaseButton
             v-if="canManage && processType.status === 'DRAFT'"
             size="sm"

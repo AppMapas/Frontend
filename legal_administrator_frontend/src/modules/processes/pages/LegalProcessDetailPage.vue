@@ -14,6 +14,8 @@ import BaseBadge from '@/components/common/BaseBadge.vue'
 import BaseModal from '@/components/common/BaseModal.vue'
 import LoadingCards from '@/components/common/LoadingCards.vue'
 import LeaveConfirmation from '@/components/common/LeaveConfirmation.vue'
+import StageTimeline from '../components/StageTimeline.vue'
+import StageTransitionPanel from '../components/StageTransitionPanel.vue'
 
 const route = useRoute()
 const cases = useLegalProcessStore()
@@ -91,6 +93,14 @@ async function reload() {
   reloadOpen.value = false
   await load()
 }
+function applyStageTransition(updated) {
+  const notesWereClean = notes.value === savedNotes.value
+  detail.value = updated
+  if (notesWereClean) {
+    notes.value = updated.caseData.generalDetails || ''
+    savedNotes.value = notes.value
+  }
+}
 watch(() => route.params.id, load, { immediate: true })
 onBeforeUnmount(() => { loadNumber += 1 })
 </script>
@@ -120,12 +130,21 @@ onBeforeUnmount(() => { loadNumber += 1 })
           <dl class="record-data">
             <div><dt>Trámite legal</dt><dd>{{ record.processTypeName }}</dd></div>
             <div><dt>Estado</dt><dd><BaseBadge variant="teal">{{ statusLabel(record.currentStatus) }}</BaseBadge></dd></div>
+            <div><dt>Etapa actual</dt><dd><BaseBadge v-if="detail.timeline?.currentStage" variant="sage">{{ detail.timeline.currentStage.name }}</BaseBadge>
+              <span v-else>Sin etapa registrada</span></dd></div>
             <div><dt>Actividad</dt><dd><span v-if="record.active">Activo</span><span v-else>Inactivo</span></dd></div>
             <div><dt>Fecha de apertura</dt><dd>{{ formatTimestamp(record.openedAt) }}</dd></div>
             <div><dt>Última actualización</dt><dd>{{ formatTimestamp(record.modifiedAt) }}</dd></div>
           </dl>
         </BaseCard>
       </div>
+      <BaseCard v-if="detail.timeline" class="form-section">
+        <header><h2>Seguimiento por etapas</h2>
+          <p class="help">Las etapas de este expediente conservan la configuración utilizada al abrirlo. El historial registra cada cambio.</p>
+        </header>
+        <StageTimeline :timeline="detail.timeline" />
+        <StageTransitionPanel :detail="detail" @updated="applyStageTransition" @conflict="requestReload" />
+      </BaseCard>
       <BaseCard class="form-section">
         <header><h2>Requisitos del expediente</h2><p class="help">Se conservan según la configuración utilizada al abrir este caso.</p></header>
         <p v-if="!detail.requirements.length" class="muted">Este expediente histórico no tiene requisitos registrados.</p>

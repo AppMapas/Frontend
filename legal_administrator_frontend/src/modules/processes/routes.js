@@ -18,6 +18,12 @@ export const processCatalogRoutes = [
     meta: { title: 'Editar trámite — LegalAdministrator' },
   },
   {
+    path: '/tramites/:id/etapas',
+    name: 'process-type-stages',
+    component: () => import('./pages/ProcessStagesPage.vue'),
+    meta: { title: 'Etapas del trámite — LegalAdministrator' },
+  },
+  {
     path: '/requisitos',
     name: 'requirements',
     component: () => import('./pages/RequirementsPage.vue'),

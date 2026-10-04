@@ -1,8 +1,16 @@
-import { httpClient } from '../../../shared/api/httpClient.js'
+import { httpClient, ApiError } from '../../../shared/api/httpClient.js'
 
 function expectList(value, label) {
   if (!Array.isArray(value)) {
     throw new Error('El servidor no devolvió una lista válida de ' + label + '.')
+  }
+  return value
+}
+
+function expectConfiguration(value) {
+  if (!Number.isSafeInteger(value?.version) || !Array.isArray(value.stages)
+    || !Array.isArray(value.transitions)) {
+    throw new ApiError('El servidor no devolvió una configuración de etapas válida.', { status: 200 })
   }
   return value
 }
@@ -34,6 +42,16 @@ export const processCatalogApi = {
 
   getProcessType(id) {
     return httpClient('/process-types/' + encodeURIComponent(id))
+  },
+
+  async getStages(id) {
+    return expectConfiguration(await httpClient('/process-types/' + encodeURIComponent(id) + '/stages'))
+  },
+
+  async saveStages(id, payload) {
+    return expectConfiguration(await httpClient('/process-types/' + encodeURIComponent(id) + '/stages', {
+      method: 'PUT', body: payload,
+    }))
   },
 
   createProcessType(payload) {
