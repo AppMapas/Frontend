@@ -4,7 +4,13 @@ import BaseCard from '@/components/common/BaseCard.vue'
 import BaseButton from '@/components/common/BaseButton.vue'
 import BaseModal from '@/components/common/BaseModal.vue'
 import { caseDocumentsApi } from '../services/caseDocumentsApi.js'
-import { documentFileError, formatFileSize, isPermanentUploadError } from '../domain/documentFiles.js'
+import {
+  documentExtension,
+  documentFileError,
+  formatFileSize,
+  isImageDocument,
+  isPermanentError,
+} from '../domain/documentFiles.js'
 import { formatTimestamp } from '../domain/caseRegistration.js'
 
 const props = defineProps({ caseId: { type: Number, required: true }, active: Boolean })
@@ -25,6 +31,9 @@ const cameraInput = ref(null)
 // los inválidos o ya rechazados se muestran con su error, pero no bloquean la navegación.
 const isWaiting = (item) => !item.validation && item.status !== 'saved' && item.status !== 'rejected'
 const pending = computed(() => queue.value.some(isWaiting))
+const previewMeta = computed(() => (preview.value
+  ? `${formatFileSize(preview.value.document.sizeBytes)} · ${formatTimestamp(preview.value.document.uploadedAt)}`
+  : ''))
 let alive = true
 let selectionId = 0
 const downloadUrls = new Map()
@@ -73,7 +82,7 @@ async function upload() {
         item.status = 'saved'
         saved += 1
       } catch (cause) {
-        item.status = isPermanentUploadError(cause) ? 'rejected' : 'failed'
+        item.status = isPermanentError(cause) ? 'rejected' : 'failed'
         item.error = cause.message || 'No fue posible guardar este documento.'
       }
     }
@@ -90,36 +99,71 @@ async function upload() {
   }
 }
 
+function releasePreviewUrl() {
+  if (preview.value?.url) {
+    URL.revokeObjectURL(preview.value.url)
+    preview.value.url = ''
+  }
+}
+
 function closePreview() {
-  if (preview.value) URL.revokeObjectURL(preview.value.url)
+  releasePreviewUrl()
   preview.value = null
 }
 
-async function openDocument(document, download = false) {
+// El visor se abre de inmediato: en un teléfono con datos lentos el usuario debe ver
+// que la consulta arrancó, aunque el documento tarde en llegar.
+async function openDocument(document) {
+  if (opening.value) return
+  closePreview()
+  preview.value = { document, url: '', error: '', permanent: false }
+  await loadPreview(document)
+}
+
+async function loadPreview(document) {
+  if (opening.value) return
+  opening.value = document.id
+  // El reintento debe limpiar el error anterior: si no, el mensaje persiste aunque el visor se recupere.
+  if (preview.value?.document.id === document.id) {
+    preview.value.error = ''
+    preview.value.permanent = false
+  }
+  try {
+    const blob = await caseDocumentsApi.content(props.caseId, document.id, false)
+    if (!alive || preview.value?.document.id !== document.id) return
+    releasePreviewUrl()
+    preview.value.url = URL.createObjectURL(blob)
+  } catch (cause) {
+    if (alive && preview.value?.document.id === document.id) {
+      preview.value.error = cause.message || 'No fue posible consultar el documento.'
+      // Un rechazo definitivo (p. ej. el archivo ya no está en el almacenamiento) no mejora reintentando.
+      preview.value.permanent = isPermanentError(cause)
+    }
+  } finally {
+    if (opening.value === document.id) opening.value = null
+  }
+}
+
+async function downloadDocument(document) {
   if (opening.value) return
   opening.value = document.id
   error.value = ''
   try {
-    const blob = await caseDocumentsApi.content(props.caseId, document.id, download)
+    const blob = await caseDocumentsApi.content(props.caseId, document.id, true)
     if (!alive) return
     const url = URL.createObjectURL(blob)
-    if (download) {
-      const link = window.document.createElement('a')
-      link.href = url
-      link.download = document.name
-      window.document.body.append(link)
-      link.click()
-      link.remove()
-      const timer = setTimeout(() => { URL.revokeObjectURL(url); downloadUrls.delete(url) }, 60000)
-      downloadUrls.set(url, timer)
-    } else {
-      closePreview()
-      preview.value = { ...document, url }
-    }
+    const link = window.document.createElement('a')
+    link.href = url
+    link.download = document.name
+    window.document.body.append(link)
+    link.click()
+    link.remove()
+    const timer = setTimeout(() => { URL.revokeObjectURL(url); downloadUrls.delete(url) }, 60000)
+    downloadUrls.set(url, timer)
   } catch (cause) {
-    if (alive) error.value = cause.message || 'No fue posible consultar el documento.'
+    if (alive) error.value = cause.message || 'No fue posible descargar el documento.'
   } finally {
-    opening.value = null
+    if (opening.value === document.id) opening.value = null
   }
 }
 
@@ -138,7 +182,7 @@ onBeforeUnmount(() => {
       <div><h2>Documentos adjuntos</h2><p class="help">Escrituras, DPI, licencias y documentación del expediente.</p></div>
       <BaseButton variant="outline" :disabled="loading || uploading" @click="load">Actualizar documentos</BaseButton>
     </header>
-    <p v-if="error" role="alert" class="document-error">{{ error }} <button type="button" @click="load" :disabled="loading || uploading">Reintentar consulta</button></p>
+    <p v-if="error" role="alert" class="document-error">{{ error }} <button type="button" class="link-button" @click="load" :disabled="loading || uploading">Reintentar consulta</button></p>
     <p v-if="loading" role="status">Cargando documentos…</p>
     <template v-if="policy && active">
       <p class="help">PDF, JPG y PNG · Máximo {{ formatFileSize(policy.maxFileSize) }} por archivo. Puedes agregar varios documentos.</p>
@@ -171,25 +215,90 @@ onBeforeUnmount(() => {
     <p v-if="!loading && !error && !documents.length" class="muted">Todavía no hay documentos adjuntos.</p>
     <ul v-if="documents.length" class="document-list" aria-label="Documentos guardados">
       <li v-for="document in documents" :key="document.id">
-        <div class="document-info"><strong>{{ document.name }}</strong>
+        <div class="document-info">
+          <span class="document-badge" aria-hidden="true">{{ documentExtension(document.name) }}</span>
+          <strong>{{ document.name }}</strong>
           <span>{{ formatFileSize(document.sizeBytes) }} · {{ formatTimestamp(document.uploadedAt) }}</span>
         </div>
         <div class="actions">
-          <BaseButton variant="outline" :disabled="!!opening" @click="openDocument(document)">Consultar</BaseButton>
-          <BaseButton variant="outline" :disabled="!!opening" @click="openDocument(document, true)">Descargar</BaseButton>
+          <BaseButton
+            variant="outline"
+            :disabled="!!opening"
+            :aria-label="`Consultar ${document.name}`"
+            @click="openDocument(document)"
+          >Consultar</BaseButton>
+          <BaseButton
+            variant="outline"
+            :disabled="!!opening"
+            :aria-label="`Descargar ${document.name}`"
+            @click="downloadDocument(document)"
+          >Descargar</BaseButton>
         </div>
       </li>
     </ul>
-    <p v-if="opening" role="status">Recuperando documento…</p>
+    <p v-if="opening && !preview" role="status">Recuperando documento…</p>
   </BaseCard>
-  <BaseModal :open="!!preview" title-id="document-preview-title" wide @close="closePreview">
+  <BaseModal
+    :open="!!preview"
+    title-id="document-preview-title"
+    description-id="document-preview-status"
+    wide
+    @close="closePreview"
+  >
     <div v-if="preview" class="document-preview">
-      <header class="record-heading"><h2 id="document-preview-title">{{ preview.name }}</h2>
-        <BaseButton variant="outline" @click="closePreview">Cerrar</BaseButton></header>
-      <img v-if="preview.contentType.startsWith('image/')" :src="preview.url" :alt="preview.name" />
-      <iframe v-else :src="preview.url" :title="preview.name" sandbox="allow-same-origin" referrerpolicy="no-referrer"></iframe>
-      <p class="help">Si el navegador no muestra la vista previa, descarga el documento para abrirlo.</p>
-      <BaseButton :disabled="!!opening" @click="openDocument(preview, true)">Descargar documento</BaseButton>
+      <header class="record-heading">
+        <div>
+          <h2 id="document-preview-title">{{ preview.document.name }}</h2>
+          <p class="help">{{ previewMeta }}</p>
+        </div>
+        <BaseButton variant="outline" @click="closePreview">Cerrar</BaseButton>
+      </header>
+
+      <p id="document-preview-status" class="help" role="status">
+        <template v-if="preview.error">No fue posible mostrar el documento.</template>
+        <template v-else-if="!preview.url">Preparando documento…</template>
+        <template v-else-if="isImageDocument(preview.document)">Imagen del expediente.</template>
+        <template v-else>Vista previa del documento PDF.</template>
+      </p>
+
+      <img
+        v-if="preview.url && isImageDocument(preview.document)"
+        class="document-image"
+        :src="preview.url"
+        :alt="`Imagen del documento ${preview.document.name}`"
+      />
+      <object
+        v-else-if="preview.url"
+        class="document-frame"
+        :data="preview.url"
+        :type="preview.document.contentType || 'application/pdf'"
+      >
+        <p class="document-fallback">
+          Tu navegador no puede mostrar este documento aquí. Usa «Descargar documento» para abrirlo.
+        </p>
+      </object>
+
+      <p v-if="preview.error" class="document-error">
+        {{ preview.error }}
+        <button
+          v-if="!preview.permanent"
+          type="button"
+          class="link-button"
+          :disabled="!!opening"
+          @click="loadPreview(preview.document)"
+        >Reintentar</button>
+      </p>
+
+      <p v-else-if="preview.url" class="help">
+        Si el navegador no muestra la vista previa, descarga el documento para abrirlo.
+      </p>
+
+      <BaseButton
+        :loading="!!opening"
+        :disabled="preview.permanent"
+        :title="preview.permanent ? 'El archivo ya no está en el almacenamiento.' : undefined"
+        @click="downloadDocument(preview.document)"
+      >Descargar documento</BaseButton>
     </div>
   </BaseModal>
 </template>
@@ -200,9 +309,17 @@ onBeforeUnmount(() => {
 .document-list li { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: .75rem; padding: 1rem; border: 1px solid var(--color-border-medium); border-radius: var(--radius-sm); }
 .document-info { display: grid; gap: .35rem; min-width: 0; overflow-wrap: anywhere; }
 .document-info span { font-size: .85rem; }
+.document-badge { justify-self: start; padding: .1rem .45rem; border: 1px solid var(--color-border-medium); border-radius: var(--radius-sm); font-size: .75rem !important; font-weight: 700; letter-spacing: .04em; color: var(--color-text-muted); background: var(--color-bg-subtle); }
 .document-error { color: var(--color-danger-strong); overflow-wrap: anywhere; }
 .document-preview { display: grid; gap: 1rem; padding: 1.25rem; }
 .document-preview h2 { overflow-wrap: anywhere; min-width: 0; }
-.document-preview img { max-width: 100%; max-height: 65vh; object-fit: contain; justify-self: center; }
-.document-preview iframe { width: 100%; height: 65vh; border: 0; }
+.document-image { max-width: 100%; max-height: 65vh; object-fit: contain; justify-self: center; }
+.document-frame { width: 100%; height: 65vh; border: 1px solid var(--color-border-medium); border-radius: var(--radius-sm); background: var(--color-bg-subtle); }
+.document-fallback { display: grid; gap: .5rem; place-content: center; height: 100%; margin: 0; padding: 1rem; text-align: center; color: var(--color-text-muted); }
+
+/* En pantallas bajas el visor cede espacio para que «Descargar documento» quede a la vista. */
+@media (max-width: 640px), (max-height: 720px) {
+  .document-frame { height: 50vh; }
+  .document-image { max-height: 50vh; }
+}
 </style>
