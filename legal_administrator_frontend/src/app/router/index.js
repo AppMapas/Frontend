@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import { authRoutes } from '@/modules/auth/routes'
 import { landingRoutes } from '@/modules/landing/routes'
 import { terrainRoutes } from '@/modules/terrenos/routes'
+import { processCatalogRoutes } from '@/modules/processes/routes'
 
 const PrivateLayout = () => import('@/app/layouts/PrivateLayout.vue')
 const HistorialPage = () => import('@/pages/HistorialPage.vue')
@@ -23,6 +24,7 @@ const routes = [
         redirect: '/terrenos',
       },
       ...terrainRoutes,
+      ...processCatalogRoutes,
       {
         path: '/formulario',
         redirect: '/terrenos',

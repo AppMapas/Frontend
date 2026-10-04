@@ -27,6 +27,9 @@ const route = useRoute()
 const isActive = computed(() => {
   if (!route) return false
   const targetPath = typeof props.to === 'string' ? props.to : props.to.path
+  if (targetPath === '/tramites' && route.path === '/requisitos') {
+    return true
+  }
   if (targetPath === '/' || targetPath === '/terrenos' || targetPath === '/formulario') {
     return route.path === '/' || route.path === '/terrenos' || route.path === '/formulario'
   }

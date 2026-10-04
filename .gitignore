@@ -1,0 +1,7 @@
+# La carpeta context está excluida localmente; conservar versionable esta skill.
+!context/
+context/*
+!context/skills/
+context/skills/*
+!context/skills/implementar-frontend/
+!context/skills/implementar-frontend/SKILL.md

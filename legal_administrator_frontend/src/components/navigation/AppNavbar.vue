@@ -10,6 +10,7 @@ import IconForm from '@/assets/icons/IconForm.vue'
 import IconHistory from '@/assets/icons/IconHistory.vue'
 import IconReport from '@/assets/icons/IconReport.vue'
 import IconUsers from '@/assets/icons/IconUsers.vue'
+import IconChecklist from '@/assets/icons/IconChecklist.vue'
 
 const props = defineProps({
   brandName: {
@@ -22,7 +23,8 @@ const props = defineProps({
       { path: '/terrenos', label: 'Terrenos', icon: IconForm },
       { path: '/historial', label: 'Historial', icon: IconHistory },
       { path: '/reportes', label: 'Reportes', icon: IconReport },
-      { path: '/clientes', label: 'Clientes', icon: IconUsers }
+      { path: '/clientes', label: 'Clientes', icon: IconUsers },
+      { path: '/tramites', label: 'Trámites', icon: IconChecklist }
     ]
   },
   userName: {
@@ -462,7 +464,7 @@ onMounted(() => {
 /* ==========================================================================
    MEDIA QUERIES (DESKTOP / TABLET / MOBILE)
    ========================================================================== */
-@media (max-width: 860px) {
+@media (max-width: 1240px) {
   .desktop-nav {
     display: none;
   }
