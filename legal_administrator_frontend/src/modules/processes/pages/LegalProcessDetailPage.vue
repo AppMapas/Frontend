@@ -15,6 +15,7 @@ import BaseModal from '@/components/common/BaseModal.vue'
 import LoadingCards from '@/components/common/LoadingCards.vue'
 import LeaveConfirmation from '@/components/common/LeaveConfirmation.vue'
 import CaseDocuments from '../components/CaseDocuments.vue'
+import CasePayments from '../components/CasePayments.vue'
 
 const route = useRoute()
 const cases = useLegalProcessStore()
@@ -28,15 +29,30 @@ const loading = ref(true)
 const failed = ref(false)
 const busy = ref(false)
 const documentState = ref({ pending: false, busy: false })
+const paymentState = ref({ pending: false, busy: false })
 const reloadOpen = ref(false)
 let loadNumber = 0
 const record = computed(() => detail.value?.caseData)
 const title = computed(() => record.value?.caseCode || 'Detalle del expediente')
 const dirty = computed(() => !loading.value && notes.value !== savedNotes.value)
+// Documentos y pagos son secciones independientes: el aviso de salida tiene que
+//uya en cuenta cualquiera de las dos con trabajo a medias.
+const section = computed(() => ({
+  pending: documentState.value.pending || paymentState.value.pending,
+  busy: documentState.value.busy || paymentState.value.busy,
+}))
 const leave = useLeaveConfirmation(
-  computed(() => dirty.value || documentState.value.pending),
-  computed(() => busy.value || documentState.value.busy),
+  computed(() => dirty.value || section.value.pending),
+  computed(() => busy.value || section.value.busy),
 )
+/**
+ * Pactar el costo total incrementa la versión del expediente. Si la vista de
+ * pagos no la devolviera, guardar las observaciones después fallaría con un
+ * conflicto por versión antigua.
+ */
+function syncVersion(next) {
+  if (record.value && Number.isSafeInteger(next)) record.value.version = next
+}
 async function load() {
   const current = ++loadNumber
   loading.value = true
@@ -89,8 +105,8 @@ async function save() {
   }
 }
 function requestReload() {
-  if (documentState.value.busy) return
-  if (dirty.value || documentState.value.pending) reloadOpen.value = true
+  if (section.value.busy) return
+  if (dirty.value || section.value.pending) reloadOpen.value = true
   else load()
 }
 async function reload() {
@@ -104,7 +120,7 @@ onBeforeUnmount(() => { loadNumber += 1 })
   <div class="office-page">
     <PageHeader eyebrow="Expediente del despacho" :title="title" :subtitle="record?.processTypeName || ''">
       <template #actions><RouterLink class="link-button" :to="{ name: 'legal-processes' }">Volver a expedientes</RouterLink>
-        <BaseButton variant="outline" :disabled="busy || documentState.busy" :loading="loading" @click="requestReload">Actualizar</BaseButton></template>
+        <BaseButton variant="outline" :disabled="busy || section.busy" :loading="loading" @click="requestReload">Actualizar</BaseButton></template>
     </PageHeader>
     <LoadingCards v-if="loading" label="Cargando expediente y requisitos" />
     <BaseCard v-else-if="failed" class="empty-state"><h2>Expediente pendiente de cargar</h2><BaseButton @click="load">Reintentar carga</BaseButton></BaseCard>
@@ -144,6 +160,13 @@ onBeforeUnmount(() => { loadNumber += 1 })
           </li>
         </ol>
       </BaseCard>
+      <CasePayments
+        :key="record.id"
+        :case-id="record.id"
+        :active="record.active"
+        @state="paymentState = $event"
+        @version="syncVersion"
+      />
       <CaseDocuments :key="record.id" :case-id="record.id" :active="record.active" @state="documentState = $event" />
       <form novalidate @submit.prevent="save">
         <BaseCard class="form-section">
