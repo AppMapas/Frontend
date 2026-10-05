@@ -107,6 +107,16 @@ onUnmounted(() => {
 
         <button
           type="button"
+          class="user-menu-item theme-toggle-item"
+          role="menuitem"
+          @click="$emit('toggleTheme')"
+        >
+          <span class="theme-toggle-icon" aria-hidden="true">{{ isDarkMode ? '☀' : '☾' }}</span>
+          <span>{{ isDarkMode ? 'Modo claro' : 'Modo oscuro' }}</span>
+        </button>
+
+        <button
+          type="button"
           class="user-menu-item item-danger"
           role="menuitem"
           @click="handleLogout"
@@ -246,6 +256,17 @@ onUnmounted(() => {
 
 .user-menu-item.item-danger:hover {
   background-color: rgba(217, 83, 79, 0.08);
+}
+
+.theme-toggle-item {
+  justify-content: flex-start;
+  padding: 0.6rem 0.75rem;
+}
+
+.theme-toggle-item .theme-toggle-icon {
+  color: var(--color-teal);
+  font-size: 1rem;
+  line-height: 1;
 }
 
 /* Transición desplegable */

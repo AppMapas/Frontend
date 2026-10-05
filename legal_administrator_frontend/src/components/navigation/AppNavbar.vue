@@ -81,7 +81,6 @@ onMounted(() => {
           <IconLogo :size="20" color="#FFFFFF" />
         </span>
         <span class="brand-title">{{ brandName }}</span>
-        <span class="brand-pill-badge">Gestión Jurídica</span>
       </RouterLink>
 
       <!-- 2. Navegación Desktop -->
@@ -96,18 +95,7 @@ onMounted(() => {
         <span class="nav-divider" aria-hidden="true"></span>
 
         <!-- Badge de Usuario / Administrador según navvar.png -->
-        <UserProfileBadge :user-name="userName" />
-
-        <button
-          type="button"
-          class="theme-toggle"
-          :aria-label="isDarkMode ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'"
-          :aria-pressed="isDarkMode"
-          @click="toggleTheme"
-        >
-          <span class="theme-toggle-icon" aria-hidden="true">{{ isDarkMode ? '☀' : '☾' }}</span>
-          <span>{{ isDarkMode ? 'Modo claro' : 'Modo oscuro' }}</span>
-        </button>
+        <UserProfileBadge :user-name="userName" :is-dark-mode="isDarkMode" @toggle-theme="toggleTheme" />
       </nav>
 
       <!-- 3. Botón menú mobile (Hamburguesa) -->
@@ -469,7 +457,7 @@ onMounted(() => {
 /* ==========================================================================
    MEDIA QUERIES (DESKTOP / TABLET / MOBILE)
    ========================================================================== */
-@media (max-width: 1360px) {
+@media (max-width: 1024px) {
   .desktop-nav {
     display: none;
   }
@@ -480,6 +468,15 @@ onMounted(() => {
 
   .navbar-inner {
     padding: 0.75rem 1rem;
+  }
+}
+
+@media (min-width: 1025px) {
+  .desktop-nav {
+    display: flex;
+  }
+  .mobile-toggle-btn {
+    display: none;
   }
 }
 

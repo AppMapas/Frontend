@@ -20,13 +20,20 @@
   --color-coral-decorative-mid: #E9A09A;
   --color-coral-decorative-glow: rgba(217, 120, 115, 0.24);
 
+  /* Paleta solicitada */
+  --color-coral-new: #FF8D51;
+  --color-salmon-new: #EFAAA3;
+  --color-sage-new: #8CAAA2;
+  --color-turquoise-new: #5A9B95;
+  --color-blue-new: #4487BF;
+
   /* Alias heredados: se conservan para componentes antiguos, sin renderizar coral. */
-  --color-coral: var(--color-teal-dark);
+  --color-coral: var(--color-turquoise-new);
   --color-soft-coral: #B9D4D0;
 
   /* Texto de acento con buen contraste sobre superficies tintadas de la paleta */
-  --color-coral-strong: var(--color-teal-dark);
-  --color-teal-strong: var(--color-teal-dark);
+  --color-coral-strong: var(--color-turquoise-new);
+  --color-teal-strong: var(--color-turquoise-new);
   --color-sage-strong: #435E58;
 
   /* Texto fuerte para estados y feedback */
