@@ -9,11 +9,23 @@ import { useClientStore } from '@/modules/users/stores/clientStore.js'
 import { useLegalProcessStore } from '@/modules/processes/stores/legalProcessStore.js'
 import { useNotificationStore } from '@/shared/notifications/notificationStore.js'
 
+import { useCashStore } from '@/modules/cash/stores/cashStore.js'
+import { useFinancialSubmissionStore } from '@/shared/finance/financialSubmissionStore.js'
+
+const cash = useCashStore()
+const submission = useFinancialSubmissionStore()
 const clients = useClientStore()
 const cases = useLegalProcessStore()
 const notifications = useNotificationStore()
 const route = useRoute()
 const auth = useAuthStore()
+watch(() => auth.user?.dpi, (actor, previous) => {
+  if (previous && actor !== previous) {
+    cash.reset()
+    submission.resetSession()
+  }
+  if (actor) submission.restoreSession(actor)
+}, { flush: 'sync', immediate: true })
 const userName = computed(() => auth.user?.name
   || [auth.user?.firstName, auth.user?.lastName].filter(Boolean).join(' ') || 'Mi cuenta')
 watch(() => route.fullPath, () => {
@@ -26,6 +38,8 @@ onBeforeUnmount(() => {
   clients.resetSession()
   cases.resetSession()
   notifications.close()
+  cash.reset()
+  submission.resetSession()
 })
 </script>
 

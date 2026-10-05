@@ -4,6 +4,7 @@ import { landingRoutes } from '@/modules/landing/routes'
 import { terrainRoutes } from '@/modules/terrenos/routes'
 import { processCatalogRoutes } from '@/modules/processes/routes'
 import { legalProcessRoutes } from '@/modules/processes/legalProcessRoutes'
+import { cashRoutes } from '@/modules/cash/routes'
 import { clientRoutes } from '@/modules/users/routes'
 
 const PrivateLayout = () => import('@/app/layouts/PrivateLayout.vue')
@@ -28,6 +29,7 @@ const routes = [
       ...processCatalogRoutes,
       ...legalProcessRoutes,
       ...clientRoutes,
+      ...cashRoutes,
       {
         path: '/formulario',
         redirect: '/terrenos',
