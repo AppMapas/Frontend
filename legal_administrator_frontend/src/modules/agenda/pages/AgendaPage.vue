@@ -1,5 +1,6 @@
 <!-- Coordina filtros, vistas y modales; los errores y confirmaciones se muestran mediante toasts. -->
 <script setup>
+import { validDay } from '@/shared/date/calendarDay.js'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/modules/auth/stores/authStore.js'
@@ -42,7 +43,11 @@ const auth = useAuthStore()
 const agenda = useAgendaStore()
 const submission = useAgendaSubmissionStore()
 const notifications = useNotificationStore()
-const selectedDay = ref(dayKey())
+let initialDay = dayKey()
+if (validDay(route.query.day)) {
+  initialDay = route.query.day
+}
+const selectedDay = ref(initialDay)
 const dayOpen = ref(false)
 const listOpen = ref(false)
 const view = ref('month')
@@ -300,6 +305,25 @@ async function openDetail(item) {
   }
 }
 
+// Los accesos del resumen abren el detalle autorizado existente, sin duplicar formularios.
+function openRequestedActivity() {
+  const external = route.query.googleEvent
+  if (typeof external === 'string' && /^[A-Za-z0-9_-]{1,1024}$/.test(external)) {
+    openDetail({ id: external, origin: 'GOOGLE' })
+    return
+  }
+  const rawId = route.query.activity
+  if (typeof rawId !== 'string' || !/^[1-9]\d{0,15}$/.test(rawId) || !Number.isSafeInteger(Number(rawId))) {
+    return
+  }
+  const item = { id: Number(rawId), origin: 'LOCAL' }
+  const original = route.query.originalStartsAt
+  if (typeof original === 'string' && original.length <= 40 && Number.isFinite(Date.parse(original))) {
+    item.originalStartsAt = original
+  }
+  openDetail(item)
+}
+
 function confirmStatus(status) {
   confirmation.value = status
   reason.value = ''
@@ -446,6 +470,18 @@ function closeDetail() {
   }
 }
 watch(
+  [() => route.query.activity, () => route.query.googleEvent, () => route.query.originalStartsAt],
+  openRequestedActivity,
+)
+watch(
+  () => route.query.day,
+  (day) => {
+    if (validDay(day)) {
+      selectDay(day)
+    }
+  },
+)
+watch(
   clientDpi,
   async (dpi) => {
     const current = ++clientSequence
@@ -499,6 +535,7 @@ watch(
 onMounted(() => {
   submission.restore(auth.user?.email)
   loadCalendar()
+  openRequestedActivity()
   timer = window.setInterval(() => {
     if (
       !dayOpen.value &&

@@ -1,3 +1,6 @@
+import { dashboardRoutes } from '@/modules/dashboard/routes.js'
+import { defaultHome } from '@/shared/auth/homeRedirect.js'
+import { useAuthStore } from '@/modules/auth/stores/authStore'
 import { createRouter, createWebHistory } from 'vue-router'
 import { authRoutes } from '@/modules/auth/routes'
 import { landingRoutes } from '@/modules/landing/routes'
@@ -24,8 +27,9 @@ const routes = [
     children: [
       {
         path: '',
-        redirect: '/terrenos',
+        redirect: () => defaultHome(useAuthStore().user?.role),
       },
+      ...dashboardRoutes,
       ...terrainRoutes,
       ...processCatalogRoutes,
       ...legalProcessRoutes,

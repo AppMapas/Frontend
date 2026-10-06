@@ -21,6 +21,7 @@ const props = defineProps({
   navItems: {
     type: Array,
     default: () => [
+      { path: '/inicio', label: 'Inicio', icon: IconReport, roles: ['Abogada', 'Administrador'] },
       { path: '/terrenos', label: 'Terrenos', icon: IconForm },
       { path: '/historial', label: 'Historial', icon: IconHistory },
       { path: '/reportes', label: 'Reportes', icon: IconReport },
@@ -459,7 +460,7 @@ onMounted(() => {
 /* ==========================================================================
    MEDIA QUERIES (DESKTOP / TABLET / MOBILE)
    ========================================================================== */
-@media (max-width: 1024px) {
+@media (max-width: 1240px) {
   .desktop-nav {
     display: none;
   }
@@ -473,7 +474,7 @@ onMounted(() => {
   }
 }
 
-@media (min-width: 1025px) {
+@media (min-width: 1241px) {
   .desktop-nav {
     display: flex;
   }

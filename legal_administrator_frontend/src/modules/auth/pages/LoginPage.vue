@@ -1,5 +1,6 @@
 <script setup>
 import { ref } from 'vue'
+import { loginRedirect, explicitRedirect } from '@/shared/auth/homeRedirect.js'
 import { useRoute, useRouter } from 'vue-router'
 import LoginForm from '../components/LoginForm.vue'
 import { useAuthStore } from '../stores/authStore'
@@ -10,12 +11,7 @@ const router = useRouter()
 const loading = ref(false)
 const error = ref('')
 
-const getRedirect = () => {
-  const redirect = route.query.redirect
-  return typeof redirect === 'string' && redirect.startsWith('/') && !redirect.startsWith('//')
-    ? redirect
-    : '/terrenos'
-}
+const getRedirect = () => loginRedirect(route.query.redirect, authStore.user?.role)
 
 const handleLogin = async (credentials) => {
   loading.value = true
@@ -25,9 +21,14 @@ const handleLogin = async (credentials) => {
     const result = await authStore.login(credentials)
 
     if (result.requiresTwoFactor) {
+      const query = {}
+      const redirect = explicitRedirect(route.query.redirect)
+      if (redirect) {
+        query.redirect = redirect
+      }
       await router.push({
         name: 'two-factor',
-        query: { redirect: getRedirect() },
+        query,
       })
       return
     }
@@ -68,4 +69,7 @@ header h2 { margin: 0 0 .65rem; color: var(--color-text-primary, #1A2332); font-
 header > span:last-child { display: block; color: var(--color-text-secondary, #5A6B7A); font-size: .78rem; line-height: 1.55; }
 .support-copy { margin: 1.6rem 0 0; color: #829496; font-size: .7rem; text-align: center; }
 @media (max-width: 380px) { header { margin-bottom: 1.5rem; }.auth-icon { margin-bottom: .9rem; }.support-copy { margin-top: 1.25rem; } }
+/* El CTA mantiene el contraste definido por la guía del proyecto. */
+:deep(.submit-button) { background: var(--color-primary); color: var(--color-text-on-primary); box-shadow: var(--shadow-sm); }
+:deep(.submit-button:hover:not(:disabled)) { background: var(--color-primary-hover); }
 </style>
