@@ -184,7 +184,6 @@ onMounted(loadProcessTypes)
     <div v-else-if="!loadError || filtered.length" class="card-grid">
       <BaseCard v-for="processType in filtered" :key="processType.id" class="process-card">
         <div class="card-top">
-          <span class="process-symbol" aria-hidden="true">§</span>
           <BaseBadge :variant="statusVariants[processType.status] || 'neutral'">
             {{ statusLabels[processType.status] || processType.status }}
           </BaseBadge>
