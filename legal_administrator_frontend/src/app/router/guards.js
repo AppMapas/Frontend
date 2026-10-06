@@ -1,11 +1,6 @@
+import { loginRedirect } from '@/shared/auth/homeRedirect.js'
 import { useAuthStore } from '@/modules/auth/stores/authStore'
 import { useNotificationStore } from '@/shared/notifications/notificationStore.js'
-
-function getSafeRedirect(value) {
-  return typeof value === 'string' && value.startsWith('/') && !value.startsWith('//')
-    ? value
-    : '/terrenos'
-}
 
 export function registerNavigationGuards(router, pinia) {
   router.beforeEach((to) => {
@@ -26,12 +21,12 @@ export function registerNavigationGuards(router, pinia) {
 
     const permittedRoles = to.meta.roles
     if (requiresAuth && permittedRoles && !permittedRoles.includes(authStore.user?.role)) {
-      useNotificationStore(pinia).show('Tu perfil no tiene acceso a la gestión de clientes y expedientes.', 'warning')
+      useNotificationStore(pinia).show('Tu perfil no tiene acceso a esta sección.', 'warning')
       return { path: '/terrenos' }
     }
 
     if (guestOnly && authStore.isAuthenticated) {
-      return getSafeRedirect(to.query.redirect)
+      return loginRedirect(to.query.redirect, authStore.user?.role)
     }
 
     return true

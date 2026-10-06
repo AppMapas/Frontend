@@ -1,5 +1,6 @@
 <script setup>
 import { ref } from 'vue'
+import { loginRedirect, explicitRedirect } from '@/shared/auth/homeRedirect.js'
 import { useRoute, useRouter } from 'vue-router'
 import TwoFactorForm from '../components/TwoFactorForm.vue'
 import { useAuthStore } from '../stores/authStore'
@@ -10,12 +11,7 @@ const router = useRouter()
 const loading = ref(false)
 const error = ref('')
 
-const getRedirect = () => {
-  const redirect = route.query.redirect
-  return typeof redirect === 'string' && redirect.startsWith('/') && !redirect.startsWith('//')
-    ? redirect
-    : '/terrenos'
-}
+const getRedirect = () => loginRedirect(route.query.redirect, authStore.user?.role)
 
 const handleVerification = async (code) => {
   loading.value = true
@@ -33,9 +29,14 @@ const handleVerification = async (code) => {
 
 const returnToLogin = async () => {
   authStore.cancelTwoFactor()
+  const query = {}
+  const redirect = explicitRedirect(route.query.redirect)
+  if (redirect) {
+    query.redirect = redirect
+  }
   await router.replace({
     name: 'login',
-    query: { redirect: getRedirect() },
+    query,
   })
 }
 </script>
@@ -76,4 +77,7 @@ header > span:last-child { display: block; max-width: 25rem; margin: 0 auto; col
 .account-hint span { color: #7f9293; }.account-hint strong { overflow: hidden; max-width: 70%; color: #44878f; text-overflow: ellipsis; white-space: nowrap; }
 .back-to-login { display: flex; align-items: center; gap: .45rem; margin: 1.5rem auto 0; border: 0; color: #627b7e; background: transparent; font-size: .7rem; font-weight: 600; cursor: pointer; }.back-to-login span { color: #ff8591; font-size: .95rem; }
 @media (max-width: 380px) { header { margin-bottom: 1.2rem; }.auth-icon { margin-bottom: .9rem; }.account-hint { align-items: flex-start; flex-direction: column; gap: .25rem; }.account-hint strong { max-width: 100%; } }
+/* El CTA mantiene el contraste definido por la guía del proyecto. */
+:deep(.submit-button) { background: var(--color-primary); color: var(--color-text-on-primary); box-shadow: var(--shadow-sm); }
+:deep(.submit-button:hover:not(:disabled)) { background: var(--color-primary-hover); }
 </style>
