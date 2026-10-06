@@ -28,7 +28,7 @@ const cash = useCashStore()
 const submission = useFinancialSubmissionStore()
 const notifications = useNotificationStore()
 const today = todayInGuatemala()
-const filters = reactive({ from: today.slice(0, 8) + '01', to: today, category: '', paymentMethod: '', status: 'ACTIVE', q: '', page: 0, size: 12 })
+const filters = reactive({ from: today.slice(0, 8) + '01', to: today, category: '', paymentMethod: '', status: 'ACTIVE', q: '', page: 0, size: 25 })
 const { refresh } = useDirectorySearch(filters, cash)
 const formOpen = ref(false)
 const formKey = ref(0)
@@ -37,9 +37,13 @@ const annulTarget = ref(null)
 const annulReason = ref('')
 const annulling = ref(false)
 const annulUncertain = ref(false)
-const hasPending = computed(() => submission.pending?.actor === auth.user?.dpi)
+const hasPending = computed(() => {
+  if (!submission.pending || !auth.user?.dpi) return false
+  return submission.pending.actor === auth.user.dpi
+})
 const pendingCash = computed(() => hasPending.value && submission.pending.endpoint.startsWith('/cash/'))
 const pendingCaseId = computed(() => {
+  if (!hasPending.value) return null
   const match = submission.pending?.endpoint.match(/^\/legal-processes\/(\d+)\/payments$/)
   if (match) return match[1]
   return null
@@ -58,7 +62,19 @@ const metrics = computed(() => {
     { label: 'Balance general', value: summary.generalBalance, note: 'Después de ambos gastos', highlighted: true },
   ]
 })
+async function confirmAccount() {
+  if (auth.isProfileLoading || !auth.isAuthenticated) return
+  try {
+    await auth.loadCurrentUser()
+  } catch (error) {
+    if (alive) notifyRequestError(error, 'No fue posible confirmar tu cuenta.', 'Reintentar', confirmAccount)
+  }
+}
 function openForm() {
+  if (!auth.user?.dpi) {
+    notifications.show('Espera a que se confirme la cuenta antes de registrar movimientos.', 'warning')
+    return
+  }
   if (hasPending.value && !pendingCash.value) {
     notifications.show('Confirma el abono pendiente desde su expediente antes de registrar otro movimiento.', 'warning')
     return
@@ -127,7 +143,8 @@ async function annul() {
     <PageHeader eyebrow="Control financiero" title="Caja"
       subtitle="Consulta tus cobros y registra gastos de oficina o personales en un solo lugar.">
       <template #actions><BaseButton variant="outline" :loading="cash.loading" :disabled="busy" @click="refresh">Actualizar</BaseButton>
-        <BaseButton :disabled="busy || hasPending" @click="openForm">Registrar movimiento</BaseButton></template>
+        <BaseButton v-if="auth.profileError && !auth.user?.dpi" variant="outline" :loading="auth.isProfileLoading" :disabled="busy" @click="confirmAccount">Reintentar cargar cuenta</BaseButton>
+        <BaseButton :loading="auth.isProfileLoading" :disabled="busy || hasPending || !auth.user?.dpi" @click="openForm">Registrar movimiento</BaseButton></template>
     </PageHeader>
     <BaseCard v-if="hasPending" class="pending-card">
       <h2>Hay un registro pendiente de confirmar</h2>
@@ -154,24 +171,43 @@ async function annul() {
         </BaseCard>
       </div>
       <p class="balance-note">Totales del período y filtros seleccionados. Los anulados aportan Q 0.00. El balance del período incluye transferencias y otros medios; no representa el efectivo físico disponible.</p>
-      <div class="section-heading"><h2>Movimientos</h2><span class="meta">{{ cash.totalElements }} registros</span></div>
+      <div class="section-heading"><h2 id="cash-movements-title">Movimientos</h2><span class="meta">{{ cash.totalElements }} registros · 25 por página</span></div>
       <BaseCard v-if="!cash.items.length" class="empty-state"><h2>No hay movimientos en esta selección</h2><p class="muted">Ajusta las fechas o registra el primer cobro o gasto.</p></BaseCard>
-      <div v-else class="movement-grid">
-        <BaseCard v-for="item in cash.items" :key="item.source + ':' + item.sourceId" class="movement-card">
-          <div class="record-heading"><div><p class="meta">{{ item.direction }} · {{ categoryName(item.category) }}</p>
-            <h3>{{ formatCashMoney(item.amount) }}</h3></div>
-            <BaseBadge v-if="!item.active" variant="neutral">Anulado</BaseBadge>
-            <BaseBadge v-else-if="item.direction === 'INGRESO'" variant="teal">Ingreso</BaseBadge>
-            <BaseBadge v-else variant="soft-coral">Egreso</BaseBadge>
-          </div>
-          <p class="movement-description">{{ item.description }}</p>
-          <dl class="record-data"><div><dt>Fecha y forma de pago</dt><dd>{{ formatPaymentDate(item.date) }} · {{ PAYMENT_METHOD_LABELS[item.paymentMethod] }}</dd></div>
-            <div v-if="item.reference"><dt>Referencia</dt><dd>{{ item.reference }}</dd></div>
-            <div v-if="item.annulReason"><dt>Motivo de anulación</dt><dd>{{ item.annulReason }}</dd></div>
-          </dl>
-          <div class="actions"><RouterLink v-if="item.caseId" class="link-button" :to="{ name: 'legal-process-detail', params: { id: item.caseId } }">{{ item.caseCode }} →</RouterLink>
-            <BaseButton v-if="item.active" variant="outline" :disabled="busy || hasPending" @click="openAnnul(item)">Anular</BaseButton></div>
-        </BaseCard>
+      <div v-else class="movement-list">
+        <p id="cash-table-help" class="table-help">Desplázate horizontalmente para consultar todas las columnas.</p>
+        <div class="table-scroll" role="region" aria-labelledby="cash-movements-title" aria-describedby="cash-table-help" tabindex="0">
+          <table class="movement-table">
+            <caption class="visually-hidden">Movimientos de Caja</caption>
+            <thead>
+              <tr>
+                <th scope="col">Fecha</th>
+                <th scope="col">Categoría</th>
+                <th scope="col">Descripción</th>
+                <th scope="col" class="amount-column">Monto</th>
+                <th scope="col">Forma de pago</th>
+                <th scope="col">Estado</th>
+                <th scope="col">Expediente</th>
+                <th scope="col">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="item in cash.items" :key="item.source + ':' + item.sourceId">
+                <td class="date-column">{{ formatPaymentDate(item.date) }}</td>
+                <td><span>{{ categoryName(item.category) }}</span><span class="cell-detail">{{ item.direction }}</span></td>
+                <td class="description-column">
+                  <p class="movement-description">{{ item.description }}</p>
+                  <p v-if="item.reference" class="cell-detail">Referencia: {{ item.reference }}</p>
+                  <p v-if="item.annulReason" class="cell-detail">Motivo de anulación: {{ item.annulReason }}</p>
+                </td>
+                <td class="amount-column movement-amount">{{ formatCashMoney(item.amount) }}</td>
+                <td>{{ PAYMENT_METHOD_LABELS[item.paymentMethod] }}</td>
+                <td><BaseBadge v-if="!item.active" variant="neutral">Anulado</BaseBadge><BaseBadge v-else variant="teal">Vigente</BaseBadge></td>
+                <td><RouterLink v-if="item.caseId" class="link-button case-link" :to="{ name: 'legal-process-detail', params: { id: item.caseId } }">{{ item.caseCode }}</RouterLink><span v-else class="cell-detail">No aplica</span></td>
+                <td><BaseButton v-if="item.active" variant="outline" :disabled="busy || hasPending || !auth.user?.dpi" @click="openAnnul(item)">Anular</BaseButton><span v-else class="cell-detail">Sin acciones</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
       <ListPagination :page="filters.page" :total-pages="cash.totalPages" :total-elements="cash.totalElements" :loading="cash.loading" @change="filters.page = $event" />
     </div>
@@ -193,15 +229,30 @@ async function annul() {
 <style src="../../../shared/styles/office.css" scoped></style>
 <style scoped>
 .cash-filters { display: grid; grid-template-columns: minmax(0, 1fr); gap: .8rem; padding: 1rem; margin-bottom: 1.25rem; background: var(--color-bg-subtle); border-radius: var(--radius-md); }
-.summary-grid, .movement-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: .85rem; }
-.metric-card, .movement-card { min-width: 0; } .metric-card :deep(.card-body), .movement-card :deep(.card-body) { display: grid; gap: .65rem; }
+.summary-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: .85rem; }
+.metric-card { min-width: 0; } .metric-card :deep(.card-body) { display: grid; gap: .65rem; }
 .metric-label { color: var(--color-text-muted); font-size: .85rem; } .metric-value { color: var(--color-text-title); font-size: clamp(1.1rem, 2vw, 1.45rem); font-family: var(--font-mono); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .highlighted { border-color: var(--color-teal-strong) !important; background: var(--color-primary-subtle); }
 .balance-note { color: var(--color-text-muted); font-size: .875rem; margin: .9rem 0 1.4rem; }
 .section-heading { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; justify-content: space-between; margin-bottom: .8rem; }
-.movement-card h3 { font-family: var(--font-mono); font-size: 1.3rem; overflow-wrap: anywhere; } .movement-description { color: var(--color-text-title); overflow-wrap: anywhere; white-space: pre-line; }
+.movement-list { min-width: 0; }
+.table-help { color: var(--color-text-muted); font-size: .875rem; margin-bottom: .6rem; }
+.table-scroll { max-width: 100%; overflow-x: auto; border: 1px solid var(--color-border-control); border-radius: var(--radius-md); background: var(--color-bg-card); }
+.table-scroll:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 3px; }
+.movement-table { width: 100%; min-width: 1080px; border-collapse: collapse; font-size: .9rem; text-align: left; }
+.movement-table th { padding: .9rem 1rem; background: var(--color-bg-subtle); color: var(--color-text-title); font-weight: 650; white-space: nowrap; }
+.movement-table td { padding: .85rem 1rem; border-top: 1px solid var(--color-border-subtle); vertical-align: top; }
+.movement-table tbody tr:hover { background: var(--color-primary-subtle); }
+.movement-table tbody tr:focus-within { background: var(--color-primary-subtle); }
+.date-column { white-space: nowrap; }
+.description-column { min-width: 240px; max-width: 360px; }
+.amount-column { text-align: right; white-space: nowrap; }
+.movement-amount { font-family: var(--font-mono); font-weight: 600; font-variant-numeric: tabular-nums; color: var(--color-text-title); }
+.movement-description { color: var(--color-text-title); overflow-wrap: anywhere; white-space: pre-line; }
+.cell-detail { display: block; color: var(--color-text-muted); font-size: .85rem; overflow-wrap: anywhere; }
+.case-link { white-space: nowrap; }
 .pending-card { margin-bottom: 1rem; } .pending-card :deep(.card-body) { display: grid; gap: .7rem; }
-@media (min-width: 640px) { .cash-filters, .summary-grid, .movement-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (min-width: 640px) { .cash-filters, .summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (min-width: 1000px) { .cash-filters { grid-template-columns: repeat(3, minmax(0, 1fr)); } .summary-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
-@media (min-width: 1280px) { .summary-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); } .movement-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (min-width: 1280px) { .summary-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); } }
 </style>

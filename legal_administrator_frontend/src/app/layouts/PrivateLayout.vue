@@ -8,6 +8,7 @@ import FloatingNotifications from '@/components/common/FloatingNotifications.vue
 import { useClientStore } from '@/modules/users/stores/clientStore.js'
 import { useLegalProcessStore } from '@/modules/processes/stores/legalProcessStore.js'
 import { useNotificationStore } from '@/shared/notifications/notificationStore.js'
+import { notifyRequestError } from '@/shared/forms/requestFeedback.js'
 
 import { useCashStore } from '@/modules/cash/stores/cashStore.js'
 import { useFinancialSubmissionStore } from '@/shared/finance/financialSubmissionStore.js'
@@ -19,6 +20,20 @@ const cases = useLegalProcessStore()
 const notifications = useNotificationStore()
 const route = useRoute()
 const auth = useAuthStore()
+let active = true
+async function loadFinancialProfile() {
+  if (!active || !auth.isAuthenticated || auth.user?.dpi || auth.isProfileLoading) return
+  if (!['Abogada', 'Administrador'].includes(auth.user?.role)) return
+  const email = auth.user?.email
+  try {
+    await auth.loadCurrentUser()
+  } catch (error) {
+    if (active && auth.isAuthenticated && auth.user?.email === email) {
+      notifyRequestError(error, 'No fue posible identificar tu cuenta para registrar movimientos.', 'Reintentar', loadFinancialProfile)
+    }
+  }
+}
+watch(() => [auth.user?.email, auth.user?.role], loadFinancialProfile, { immediate: true })
 watch(() => auth.user?.dpi, (actor, previous) => {
   if (previous && actor !== previous) {
     cash.reset()
@@ -35,6 +50,7 @@ watch(() => route.fullPath, () => {
   }
 })
 onBeforeUnmount(() => {
+  active = false
   clients.resetSession()
   cases.resetSession()
   notifications.close()

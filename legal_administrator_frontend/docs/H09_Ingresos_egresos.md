@@ -123,3 +123,47 @@ node --test --experimental-test-isolation=none \
   tests/casePayments.test.js tests/caseDocuments.test.js \
   tests/hu05Workflow.test.js tests/processCatalogApi.test.js
 ```
+
+
+## Corrección: primera navegación hacia Caja
+
+Las respuestas actuales de login, 2FA y renovación contienen correo, nombre y rol, pero no DPI. El perfil completo sí contiene DPI. Al entrar en Caja sin haber visitado Perfil, la comparación entre `pending?.actor` y `user?.dpi` podía comparar dos valores `undefined`, marcar falsamente un movimiento pendiente y evaluar `pending.endpoint` cuando `pending` era `null`. La reproducción registró `Cannot read properties of null (reading 'endpoint')`, el bloqueo del registro y una confirmación de salida sin cambios reales.
+
+La corrección aplica estos controles:
+
+- Caja exige que existan un movimiento pendiente y un DPI antes de comparar el propietario. La primera entrada renderiza el contenido y no inventa cambios pendientes.
+- `PrivateLayout` completa automáticamente el perfil autenticado para Abogada y Administrador cuando falta DPI, utilizando la consulta de perfil existente. No hace falta visitar Perfil para habilitar Caja o recuperar una solicitud guardada.
+- Los formularios financieros esperan la identificación de la cuenta. El registro muestra un spinner durante la consulta. Un fallo se comunica con una tarjeta flotante; **Reintentar cargar cuenta** permanece disponible en Caja aunque se haya cerrado la notificación o se haya cambiado de pantalla.
+- Login y renovación usan el mismo mapeo de usuario. La renovación conserva los datos del perfil únicamente para el mismo correo; el rol siempre procede de la nueva respuesta del servidor. Cambiar de cuenta no hereda el DPI anterior.
+- Las respuestas del perfil posteriores a logout, cambio de cuenta o una consulta más reciente se descartan. La recuperación de cobros conserva UUID y contenido original durante la renovación del token.
+
+Archivos principales: `modules/cash/pages/CashPage.vue`, `app/layouts/PrivateLayout.vue`, `modules/auth/stores/authStore.js` y `shared/auth/authSessionStorage.js`.
+
+### Pruebas de navegación e identidad
+
+- **75 pruebas frontend focalizadas aprobadas**, incluyendo nueve pruebas nuevas de login sin DPI, conservación del perfil, selección por el sujeto JWT, reintento y respuestas tardías.
+- Compilación de producción correcta.
+- **9 escenarios de navegador**: primera entrada desde el menú, salida y regreso en 390, 768 y 1440 px con temas claro y oscuro; fallo del perfil antes de navegar y reintento local; cobro pendiente con token vencido; recuperación de solicitud desde una sesión sin DPI. Se verifican registro, limpieza, ausencia de errores de ejecución y conservación de la misma solicitud, con respuestas simuladas.
+
+```bash
+node --test --experimental-test-isolation=none \
+  tests/authSessionIdentity.test.js tests/cashWorkflow.test.js \
+  tests/cashIncomeSummary.test.js tests/casePayments.test.js \
+  tests/caseDocuments.test.js tests/hu05Workflow.test.js \
+  tests/processCatalogApi.test.js
+```
+
+La prueba de navegador se conserva en `tests/browser/cashNavigation.cjs`. Requiere una compilación estática y Playwright; se puede instalar en una carpeta temporal sin añadir dependencias al proyecto:
+
+```bash
+npm run build -- --configLoader runner --outDir /tmp/h09-nav-dist
+npm install --prefix /tmp/h09-nav-browser --no-audit --no-fund --ignore-scripts playwright
+PLAYWRIGHT_BROWSERS_PATH=/tmp/h09-nav-browser/browsers \
+  /tmp/h09-nav-browser/node_modules/.bin/playwright install chromium --only-shell
+NODE_PATH=/tmp/h09-nav-browser/node_modules \
+  PLAYWRIGHT_BROWSERS_PATH=/tmp/h09-nav-browser/browsers \
+  CASH_FRONTEND_DIST=/tmp/h09-nav-dist \
+  node tests/browser/cashNavigation.cjs
+```
+
+La prueba utiliza un servidor estático temporal en `127.0.0.1:55440`, intercepta todas las consultas de API y lo cierra al finalizar. No levanta la API ni Docker y no registra movimientos reales. Después de aplicar los cambios, recargar la pestaña reinicia el estado de sesión anterior.
