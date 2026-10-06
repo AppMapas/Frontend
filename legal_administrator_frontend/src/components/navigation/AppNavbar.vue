@@ -26,6 +26,7 @@ const props = defineProps({
       { path: '/reportes', label: 'Reportes', icon: IconReport },
       { path: '/clientes', label: 'Clientes', icon: IconUsers, roles: ['Abogada', 'Administrador'] },
       { path: '/expedientes', label: 'Expedientes', icon: IconHistory, roles: ['Abogada', 'Administrador'] },
+      { path: '/caja', label: 'Caja', icon: IconReport, roles: ['Abogada', 'Administrador'] },
       { path: '/tramites', label: 'Trámites', icon: IconChecklist }
     ]
   },

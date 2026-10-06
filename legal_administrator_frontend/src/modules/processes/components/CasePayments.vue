@@ -15,7 +15,9 @@ import BaseModal from '@/components/common/BaseModal.vue'
 import { useNotificationStore } from '@/shared/notifications/notificationStore.js'
 import { notifyRequestError } from '@/shared/forms/requestFeedback.js'
 import { casePaymentsApi } from '../services/casePaymentsApi.js'
-import { createRequestId } from '../domain/caseRegistration.js'
+import { useAuthStore } from '@/modules/auth/stores/authStore.js'
+import { useFinancialSubmissionStore } from '@/shared/finance/financialSubmissionStore.js'
+import { cashApi } from '../../cash/services/cashApi.js'
 import {
   PAYMENT_METHODS, PAYMENT_METHOD_LABELS, PAYMENT_TYPES, PAYMENT_TYPE_LABELS,
   amountToRequest, formatMoney, formatPaymentDate, formatPercent, parseAmount,
@@ -26,6 +28,13 @@ import {
 const props = defineProps({ caseId: { type: Number, required: true }, active: Boolean })
 const emit = defineEmits(['state', 'version'])
 const notifications = useNotificationStore()
+const auth = useAuthStore()
+const submission = useFinancialSubmissionStore()
+const paymentEndpoint = computed(() => `/legal-processes/${props.caseId}/payments`)
+const pendingHere = computed(() => submission.pending?.actor === auth.user?.dpi && submission.pending?.endpoint === paymentEndpoint.value)
+const unresolved = computed(() => !!submission.pending)
+const annulReason = ref('')
+const annulUncertain = ref(false)
 
 const ledger = ref(null)
 const loading = ref(true)
@@ -38,8 +47,6 @@ const formErrors = ref({})
 const totalText = ref('')
 const totalErrors = ref({})
 const annulling = ref(null)
-/** Abono a la espera de confirmarse, con la clave que lo identifica. */
-let pendingPayment = null
 let alive = true
 
 function emptyForm() {
@@ -55,9 +62,9 @@ function emptyForm() {
 
 const progress = computed(() => paymentProgress(ledger.value))
 const barWidth = computed(() => `${progress.value.known ? progress.value.percent : 0}%`)
-const pendingWork = computed(() => formOpen.value || totalOpen.value)
+const pendingWork = computed(() => formOpen.value || totalOpen.value || !!annulling.value || pendingHere.value)
 
-watch([pendingWork, saving], () => emit('state', { pending: pendingWork.value, busy: saving.value }))
+watch([pendingWork, saving, annulUncertain], () => emit('state', { pending: pendingWork.value, busy: saving.value || annulUncertain.value }))
 
 async function load() {
   loading.value = true
@@ -68,7 +75,10 @@ async function load() {
     applyLedger(result)
     if (totalOpen.value) totalText.value = editableAmount(result.totalAmount)
   } catch (cause) {
-    if (alive) error.value = cause.message || 'No fue posible consultar los pagos del expediente.'
+    if (alive) {
+      error.value = cause.message || 'No fue posible consultar los pagos del expediente.'
+      notifyRequestError(cause, 'No fue posible consultar los pagos.', 'Reintentar', load)
+    }
   } finally {
     if (alive) loading.value = false
   }
@@ -89,14 +99,22 @@ function editableAmount(amount) {
 }
 
 function openPaymentForm() {
+  if (unresolved.value && !pendingHere.value) {
+    notifications.show('Confirma el movimiento pendiente en Caja antes de registrar otro abono.', 'warning')
+    return
+  }
   form.value = emptyForm()
+  if (pendingHere.value) {
+    const payload = submission.pending.payload
+    form.value = { ...payload, amount: String(payload.amount) }
+  }
   formErrors.value = {}
-  pendingPayment = null
   totalOpen.value = false
   formOpen.value = true
 }
 
 function openTotalForm() {
+  if (unresolved.value) return
   formOpen.value = false
   totalErrors.value = {}
   totalText.value = editableAmount(ledger.value?.totalAmount)
@@ -107,57 +125,38 @@ function closeForms() {
   if (saving.value) return
   formOpen.value = false
   totalOpen.value = false
-  pendingPayment = null
 }
 
 async function submit() {
-  if (saving.value || !props.active) return
-  const amount = parseAmount(form.value.amount)
-  formErrors.value = paymentFormErrors(form.value, { today: todayISO() })
-  if (amount.error || amount.cents <= 0) {
-    formErrors.value.amount = amount.error || 'El monto debe ser mayor que cero.'
+  if (saving.value || (!props.active && !pendingHere.value)) return
+  let payload = null
+  if (!pendingHere.value) {
+    const amount = parseAmount(form.value.amount)
+    formErrors.value = paymentFormErrors(form.value, { today: todayISO() })
+    if (amount.error || amount.cents <= 0) formErrors.value.amount = amount.error || 'El monto debe ser mayor que cero.'
+    if (Object.keys(formErrors.value).length) {
+      notifications.show(Object.values(formErrors.value)[0], 'warning')
+      return
+    }
+    payload = {
+      amount: amountToRequest(amount.cents), paymentType: form.value.paymentType,
+      paymentMethod: form.value.paymentMethod, concept: form.value.concept.trim(),
+      paymentDate: form.value.paymentDate, reference: form.value.reference.trim() || null,
+    }
   }
-  if (Object.keys(formErrors.value).length) return
-
-  const payload = {
-    amount: amountToRequest(amount.cents),
-    paymentType: form.value.paymentType,
-    paymentMethod: form.value.paymentMethod,
-    concept: form.value.concept.trim(),
-    paymentDate: form.value.paymentDate,
-    reference: form.value.reference.trim() || null,
-  }
-  const signature = JSON.stringify(payload)
-  // Una clave por abono. Se reutiliza solo mientras el contenido sea el mismo y
-  // no sepamos si entró: así un doble toque o una respuesta perdida no cobran dos
-  // veces. Si la abogada corrige algo, es otro abono y necesita otra clave.
-  if (!pendingPayment || pendingPayment.signature !== signature) {
-    pendingPayment = { signature, requestId: createRequestId(), payload }
-  }
-
   saving.value = true
   try {
-    const result = await casePaymentsApi.register(props.caseId, {
-      requestId: pendingPayment.requestId, ...pendingPayment.payload,
-    })
-    if (!alive) return
-    pendingPayment = null
+    const result = await submission.send(paymentEndpoint.value, payload, auth.user?.dpi, 'ledger')
+    if (!alive || !result) return
     applyLedger(result)
     formOpen.value = false
     form.value = emptyForm()
     notifications.show('Abono registrado.', 'success')
   } catch (cause) {
     if (!alive) return
-    if (retainRequestId(cause)) {
-      notifications.show(
-        'No se pudo confirmar si el abono quedó registrado. Puedes reintentar con seguridad: no se cobrará dos veces.',
-        'warning', 'Reintentar', submit,
-      )
-    } else {
-      // Respuesta definitiva del servidor: la siguiente corrección es otro abono.
-      pendingPayment = null
-      notifyRequestError(cause, 'No fue posible registrar el abono.')
-    }
+    if (submission.uncertain) {
+      notifications.show('No se confirmó el abono. Reintenta la misma solicitud para comprobarlo sin duplicarla.', 'warning', 'Reintentar', submit)
+    } else notifyRequestError(cause, 'No fue posible registrar el abono.')
   } finally {
     if (alive) saving.value = false
   }
@@ -186,24 +185,42 @@ async function saveTotal() {
   }
 }
 
+function openAnnul(payment) {
+  annulling.value = payment
+  annulReason.value = ''
+  annulUncertain.value = false
+}
+function closeAnnul() {
+  if (saving.value || annulUncertain.value) return
+  annulling.value = null
+}
 async function confirmAnnul() {
   const target = annulling.value
   if (!target || saving.value) return
+  if (!annulReason.value.trim()) { notifications.show('Escribe el motivo de anulación.', 'warning'); return }
   saving.value = true
   try {
-    const result = await casePaymentsApi.annul(props.caseId, target.id)
+    await cashApi.annul({ source: 'CASE_PAYMENT', sourceId: target.id, caseId: props.caseId, version: ledger.value.caseVersion }, annulReason.value)
     if (!alive) return
-    applyLedger(result)
     annulling.value = null
+    annulUncertain.value = false
+    await load()
     notifications.show('Abono anulado. El saldo pendiente se actualizó.', 'success')
   } catch (cause) {
-    if (alive) notifyRequestError(cause, 'No fue posible anular el abono.', 'Actualizar', load)
+    if (!alive) return
+    if (retainRequestId(cause)) {
+      annulUncertain.value = true
+      notifications.show('No se confirmó la anulación. Reintenta con el mismo motivo.', 'warning', 'Reintentar', confirmAnnul)
+    } else {
+      annulUncertain.value = false
+      notifyRequestError(cause, 'No fue posible anular el abono.', 'Actualizar', load)
+    }
   } finally {
     if (alive) saving.value = false
   }
 }
 
-onMounted(load)
+onMounted(() => { load(); if (pendingHere.value) openPaymentForm() })
 onBeforeUnmount(() => {
   alive = false
   emit('state', { pending: false, busy: false })
@@ -220,10 +237,8 @@ onBeforeUnmount(() => {
       <BaseButton variant="outline" :disabled="loading || saving" @click="load">Actualizar</BaseButton>
     </header>
 
-    <p v-if="error" role="alert" class="payment-error">
-      {{ error }}
-      <button type="button" :disabled="loading || saving" @click="load">Reintentar consulta</button>
-    </p>
+    <BaseButton v-if="error" variant="outline" :disabled="loading || saving" @click="load">Reintentar consulta</BaseButton>
+    <div v-if="pendingHere" class="actions"><BaseButton :disabled="saving || unresolved" @click="openPaymentForm">Confirmar abono pendiente</BaseButton></div>
     <p v-if="loading" role="status">Cargando pagos del expediente…</p>
 
     <template v-if="ledger">
@@ -258,8 +273,8 @@ onBeforeUnmount(() => {
 
       <p v-if="!active" class="help">Este expediente está inactivo. Puedes consultar sus pagos, pero no registrar abonos.</p>
       <div v-else class="actions">
-        <BaseButton :disabled="saving" @click="openPaymentForm">Registrar abono</BaseButton>
-        <BaseButton variant="outline" :disabled="saving" @click="openTotalForm">
+        <BaseButton :disabled="saving || unresolved" @click="openPaymentForm">Registrar abono</BaseButton>
+        <BaseButton variant="outline" :disabled="saving || unresolved" @click="openTotalForm">
           {{ ledger.totalAgreed ? 'Editar costo total' : 'Definir costo total' }}
         </BaseButton>
       </div>
@@ -287,9 +302,9 @@ onBeforeUnmount(() => {
         </div>
       </form>
 
-      <form v-if="formOpen && active" novalidate class="payment-form" @submit.prevent="submit">
+      <form v-if="formOpen && (active || pendingHere)" novalidate class="payment-form" @submit.prevent="submit">
         <label for="payment-amount">Monto del abono (Q)
-          <input
+          <input :disabled="saving || pendingHere"
             id="payment-amount"
             v-model="form.amount"
             type="text"
@@ -306,14 +321,14 @@ onBeforeUnmount(() => {
 
         <div class="payment-form-row">
           <label for="payment-type">Tipo de abono
-            <select id="payment-type" v-model="form.paymentType">
+            <select :disabled="saving || pendingHere" id="payment-type" v-model="form.paymentType">
               <option v-for="option in PAYMENT_TYPES" :key="option" :value="option">
                 {{ PAYMENT_TYPE_LABELS[option] }}
               </option>
             </select>
           </label>
           <label for="payment-method">Forma de pago
-            <select id="payment-method" v-model="form.paymentMethod">
+            <select :disabled="saving || pendingHere" id="payment-method" v-model="form.paymentMethod">
               <option v-for="option in PAYMENT_METHODS" :key="option" :value="option">
                 {{ PAYMENT_METHOD_LABELS[option] }}
               </option>
@@ -322,7 +337,7 @@ onBeforeUnmount(() => {
         </div>
 
         <label for="payment-concept">Concepto
-          <input
+          <input :disabled="saving || pendingHere"
             id="payment-concept"
             v-model="form.concept"
             type="text"
@@ -338,7 +353,7 @@ onBeforeUnmount(() => {
 
         <div class="payment-form-row">
           <label for="payment-date">Fecha del pago
-            <input
+            <input :disabled="saving || pendingHere"
               id="payment-date"
               v-model="form.paymentDate"
               type="date"
@@ -348,7 +363,7 @@ onBeforeUnmount(() => {
             />
           </label>
           <label for="payment-reference">Referencia (opcional)
-            <input
+            <input :disabled="saving || pendingHere"
               id="payment-reference"
               v-model="form.reference"
               type="text"
@@ -367,7 +382,7 @@ onBeforeUnmount(() => {
         </p>
 
         <div class="actions">
-          <BaseButton type="submit" :loading="saving">Registrar abono</BaseButton>
+          <BaseButton type="submit" :loading="saving"><span v-if="pendingHere">Reintentar el mismo abono</span><span v-else>Registrar abono</span></BaseButton>
           <BaseButton variant="outline" :disabled="saving" @click="closeForms">Cancelar</BaseButton>
         </div>
       </form>
@@ -396,9 +411,9 @@ onBeforeUnmount(() => {
               v-if="payment.active && active"
               variant="outline"
               size="sm"
-              :disabled="saving"
+              :disabled="saving || unresolved"
               :aria-label="`Anular el abono de ${formatMoney(payment.amount)}: ${payment.concept}`"
-              @click="annulling = payment"
+              @click="openAnnul(payment)"
             >
               Anular
             </BaseButton>
@@ -408,7 +423,7 @@ onBeforeUnmount(() => {
     </template>
   </BaseCard>
 
-  <BaseModal :open="!!annulling" title-id="annul-payment-title" @close="annulling = null">
+  <BaseModal :open="!!annulling" title-id="annul-payment-title" :dismissible="!saving && !annulUncertain" @close="closeAnnul">
     <div v-if="annulling" class="confirm-content">
       <h2 id="annul-payment-title">Anular abono</h2>
       <p>
@@ -416,8 +431,11 @@ onBeforeUnmount(() => {
         («{{ annulling.concept }}»). El registro se conserva para auditoría, pero dejará de contar
         en el saldo pendiente.
       </p>
+      <label for="payment-annul-reason">Motivo obligatorio
+        <textarea id="payment-annul-reason" v-model="annulReason" rows="3" maxlength="500" :disabled="saving || annulUncertain"></textarea>
+      </label>
       <div class="actions">
-        <BaseButton variant="outline" :disabled="saving" @click="annulling = null">Conservar abono</BaseButton>
+        <BaseButton variant="outline" :disabled="saving || annulUncertain" @click="closeAnnul">Conservar abono</BaseButton>
         <BaseButton :loading="saving" @click="confirmAnnul">Anular abono</BaseButton>
       </div>
     </div>

@@ -8,7 +8,7 @@ defineEmits(['decide'])
   <BaseModal :open="open" title-id="leave-form-title" @close="$emit('decide', false)">
     <div class="leave-content">
       <h2 id="leave-form-title">¿Salir de este formulario?</h2>
-      <p v-if="uncertain">El servidor no ha confirmado el guardado. Reintenta la misma solicitud para comprobar el resultado antes de registrar otro expediente.</p>
+      <p v-if="uncertain">El servidor no ha confirmado el guardado. Reintenta la misma solicitud para comprobar el resultado antes de registrar otro registro.</p>
       <p v-else>Los cambios que no hayas guardado se perderán.</p>
       <div class="leave-actions">
         <BaseButton variant="outline" @click="$emit('decide', true)">Salir</BaseButton>

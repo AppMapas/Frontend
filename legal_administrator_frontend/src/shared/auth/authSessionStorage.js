@@ -22,15 +22,23 @@ function parseUser(value) {
   }
 }
 
-function userFromResponse(response) {
+/** Las respuestas de login y renovación contienen menos datos que el perfil. */
+export function mapAuthUser(response, previousUser = null) {
   if (!response?.email) return null
-  return {
+  const user = {
     email: response.email,
     firstName: response.firstName,
     lastName: response.lastName,
     name: [response.firstName, response.lastName].filter(Boolean).join(' '),
-    role: response.role,
+    role: response.role ?? response.roleName,
   }
+  const sameAccount = previousUser?.email === response.email
+  const profileFields = ['dpi', 'age', 'maritalStatusName', 'nationalityName', 'createdAt']
+  for (const field of profileFields) {
+    if (response[field] !== undefined) user[field] = response[field]
+    else if (sameAccount) user[field] = previousUser[field]
+  }
+  return user
 }
 
 export function readPersistedAuthSession() {
@@ -76,7 +84,7 @@ export function interceptAuthResponse(response) {
   persistAuthSession({
     accessToken: response.accessToken,
     refreshToken: response.refreshToken,
-    user: userFromResponse(response) || previous?.user,
+    user: mapAuthUser(response, previous?.user),
     twoFactorEnabled: response.twoFactorEnabled ?? previous?.twoFactorEnabled ?? false,
   })
 }

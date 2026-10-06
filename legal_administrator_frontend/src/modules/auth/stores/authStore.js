@@ -1,24 +1,9 @@
 import { defineStore } from 'pinia'
-import { clearPersistedAuthSession, persistAuthSession, readPersistedAuthSession } from '@/shared/auth/authSessionStorage'
+import { clearPersistedAuthSession, mapAuthUser, persistAuthSession, readPersistedAuthSession } from '@/shared/auth/authSessionStorage'
 import { usersApi } from '@/modules/users/services/usersApi'
 import { authApi } from '../services/authApi'
 
 let twoFactorSetupRequestId = 0
-
-function mapUser(response) {
-  return {
-    dpi: response.dpi,
-    email: response.email,
-    firstName: response.firstName,
-    lastName: response.lastName,
-    name: [response.firstName, response.lastName].filter(Boolean).join(' '),
-    role: response.role ?? response.roleName,
-    age: response.age,
-    maritalStatusName: response.maritalStatusName,
-    nationalityName: response.nationalityName,
-    createdAt: response.createdAt,
-  }
-}
 
 function getTokenSubject(token) {
   if (typeof atob !== 'function' || typeof token !== 'string') return ''
@@ -62,6 +47,7 @@ export const useAuthStore = defineStore('auth', {
       twoFactorSetup: null,
       isTwoFactorLoading: false,
       twoFactorError: null,
+      profileRequestId: 0,
       isProfileLoading: false,
       profileError: null,
     }
@@ -73,7 +59,12 @@ export const useAuthStore = defineStore('auth', {
         throw new Error('El servidor no devolvió una sesión válida.')
       }
 
-      this.user = mapUser(response)
+      if (this.user?.email !== response.email) {
+        this.profileRequestId += 1
+        this.isProfileLoading = false
+        this.profileError = null
+      }
+      this.user = mapAuthUser(response, this.user)
       this.accessToken = response.accessToken
       this.refreshToken = response.refreshToken
       this.isAuthenticated = Boolean(response.accessToken)
@@ -142,20 +133,28 @@ export const useAuthStore = defineStore('auth', {
     async loadCurrentUser() {
       if (!this.accessToken) throw new Error('No existe una sesión autenticada.')
 
+      const requestId = ++this.profileRequestId
+      const authenticatedEmail = getTokenSubject(this.accessToken) || this.user?.email
+      const stillCurrent = () => requestId === this.profileRequestId
+        && this.isAuthenticated
+        && (getTokenSubject(this.accessToken) || this.user?.email) === authenticatedEmail
+
       this.isProfileLoading = true
       this.profileError = null
       try {
-        const authenticatedEmail = getTokenSubject(this.accessToken) || this.user?.email
         const response = await usersApi.getCurrentByEmail(authenticatedEmail)
-        this.user = mapUser(response)
+        if (!stillCurrent()) return null
+        if (!response?.dpi) throw new Error('El servidor no confirmó el DPI de la cuenta autenticada.')
+        this.user = mapAuthUser(response)
         this.twoFactorEnabled = getTwoFactorStatus(response, this.twoFactorEnabled)
         this.persistSession()
         return this.user
       } catch (error) {
+        if (!stillCurrent()) return null
         this.profileError = error?.message || 'No fue posible cargar el perfil del usuario.'
         throw error
       } finally {
-        this.isProfileLoading = false
+        if (requestId === this.profileRequestId) this.isProfileLoading = false
       }
     },
 
@@ -263,6 +262,8 @@ export const useAuthStore = defineStore('auth', {
     },
 
     logout() {
+      this.profileRequestId += 1
+      this.isProfileLoading = false
       this.isAuthenticated = false
       this.pending2FA = false
       this.pendingEmail = null
