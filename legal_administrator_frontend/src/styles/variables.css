@@ -4,6 +4,14 @@
  */
 
 :root {
+  /* Fondos de calendario y acentos con variantes para ambos temas. */
+  --color-calendar-blue-bg: #DCEEFF;
+  --color-calendar-blue-accent: #386FAA;
+  --color-calendar-violet-bg: #EDE1FF;
+  --color-calendar-violet-accent: #7551A8;
+  --color-calendar-amber-bg: #FFF0C7;
+  --color-calendar-amber-accent: #89601B;
+
   /* ==========================================================================
      1. PALETA TEAL
      ========================================================================== */
@@ -135,6 +143,13 @@
 }
 
 [data-theme='dark'] {
+  --color-calendar-blue-bg: #1C354D;
+  --color-calendar-blue-accent: #92C4F5;
+  --color-calendar-violet-bg: #342848;
+  --color-calendar-violet-accent: #C7A6F0;
+  --color-calendar-amber-bg: #403320;
+  --color-calendar-amber-accent: #E9C17A;
+
    /* Slate profundo con elevación teal contenida. */
    color-scheme: dark;
 

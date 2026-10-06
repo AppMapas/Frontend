@@ -126,6 +126,7 @@ onBeforeUnmount(() => { alive = false; loadNumber += 1 })
       <div class="form-actions">
         <RouterLink class="link-button" :to="{ name: 'clientes' }">Volver al directorio</RouterLink>
         <RouterLink v-if="editing" class="link-button" :to="{ name: 'legal-processes', query: { clientDpi: route.params.dpi } }">Ver expedientes</RouterLink>
+        <RouterLink v-if="editing" class="link-button" :to="{ name: 'agenda', query: { clientDpi: route.params.dpi } }">Ver agenda del cliente</RouterLink>
         <BaseButton v-if="active" type="submit" :loading="busy" :disabled="!clients.catalogsReady">Guardar cliente</BaseButton>
       </div>
     </form>
