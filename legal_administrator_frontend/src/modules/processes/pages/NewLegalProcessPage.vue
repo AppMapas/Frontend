@@ -39,7 +39,10 @@ const payment = ref({
   paymentDate: todayISO(),
   reference: ''
 })
+const receiptFile = ref(null)
 const hasInitialPayment = ref(false)
+const errors = ref({})
+const fields = ref(null)
 const templateSelector = ref(null)
 const initialLoading = ref(Boolean(route.query.clientDpi))
 const baseline = ref('')
@@ -118,7 +121,15 @@ async function submit() {
       payload.client = clientPayload(newClient.value)
     } else {
       if (!existingClient.value?.active || !completeClient(existingClient.value)) {
-        notifications.show('Selecciona un cliente activo con nacionalidad, estado civil y dirección completos.', 'warning')
+        notifications.show('Selecciona un cliente activo con nacionalidad, estado civil y dirección completos.', 'warning', 'Completar datos', async () => {
+          if (existingClient.value?.dpi) {
+            try {
+              existingClient.value = await clients.get(existingClient.value.dpi)
+            } catch (refreshError) {
+              notifyRequestError(refreshError, 'No fue posible actualizar el cliente.')
+            }
+          }
+        })
         form.value?.querySelector('#case-client-query')?.focus()
         return
       }
@@ -139,6 +150,10 @@ async function submit() {
     if (receiptFile.value && detail.caseData.id) {
       try { await caseDocumentsApi.upload(detail.caseData.id, receiptFile.value) } catch (e) {}
     }
+    notifications.show('Expediente ' + detail.caseData.caseCode + ' registrado correctamente.', 'success')
+    // Reset dirty state before navigation to avoid leave confirmation
+    baseline.value = capture()
+    await router.replace({ name: 'legal-processes' })
   } catch (error) {
     if (!alive) return
     if (cases.uncertain) {
