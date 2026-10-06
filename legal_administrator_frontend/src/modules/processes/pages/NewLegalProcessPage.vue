@@ -121,13 +121,9 @@ async function submit() {
       payload.client = clientPayload(newClient.value)
     } else {
       if (!existingClient.value?.active || !completeClient(existingClient.value)) {
-        notifications.show('Selecciona un cliente activo con nacionalidad, estado civil y dirección completos.', 'warning', 'Completar datos', async () => {
+        notifications.show('Selecciona un cliente activo con nacionalidad, estado civil y dirección completos.', 'warning', 'Completar datos', () => {
           if (existingClient.value?.dpi) {
-            try {
-              existingClient.value = await clients.get(existingClient.value.dpi)
-            } catch (refreshError) {
-              notifyRequestError(refreshError, 'No fue posible actualizar el cliente.')
-            }
+            router.push({ name: 'client-edit', params: { dpi: existingClient.value.dpi } })
           }
         })
         form.value?.querySelector('#case-client-query')?.focus()

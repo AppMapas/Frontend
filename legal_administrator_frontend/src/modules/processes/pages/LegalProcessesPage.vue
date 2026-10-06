@@ -25,7 +25,7 @@ const { refresh } = useDirectorySearch(filters, cases)
     <PageHeader eyebrow="Gestión jurídica" title="Expedientes"
       subtitle="Consulta los trámites abiertos para cada cliente y sus requisitos.">
       <template #actions><BaseButton variant="outline" :loading="cases.loading" @click="refresh">Actualizar</BaseButton>
-        <RouterLink class="link-button primary" :to="{ name: 'legal-process-new' }">Abrir expediente</RouterLink></template>
+        <RouterLink class="link-button primary" :to="{ name: 'legal-process-new' }">Crear expediente</RouterLink></template>
     </PageHeader>
     <div class="toolbar">
       <label for="cases-query">Buscar expediente
