@@ -16,6 +16,7 @@ import LoadingCards from '@/components/common/LoadingCards.vue'
 import LeaveConfirmation from '@/components/common/LeaveConfirmation.vue'
 import CaseDocuments from '../components/CaseDocuments.vue'
 import CasePayments from '../components/CasePayments.vue'
+import UpcomingActivities from '@/modules/agenda/components/UpcomingActivities.vue'
 
 const route = useRoute()
 const cases = useLegalProcessStore()
@@ -160,6 +161,7 @@ onBeforeUnmount(() => { loadNumber += 1 })
           </li>
         </ol>
       </BaseCard>
+      <UpcomingActivities v-if="record" :case-id="record.id" />
       <CasePayments
         :key="record.id"
         :case-id="record.id"

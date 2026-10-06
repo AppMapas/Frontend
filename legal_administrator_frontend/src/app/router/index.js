@@ -4,6 +4,7 @@ import { landingRoutes } from '@/modules/landing/routes'
 import { terrainRoutes } from '@/modules/terrenos/routes'
 import { processCatalogRoutes } from '@/modules/processes/routes'
 import { legalProcessRoutes } from '@/modules/processes/legalProcessRoutes'
+import { agendaRoutes } from '@/modules/agenda/routes'
 import { cashRoutes } from '@/modules/cash/routes'
 import { clientRoutes } from '@/modules/users/routes'
 
@@ -30,6 +31,7 @@ const routes = [
       ...legalProcessRoutes,
       ...clientRoutes,
       ...cashRoutes,
+      ...agendaRoutes,
       {
         path: '/formulario',
         redirect: '/terrenos',

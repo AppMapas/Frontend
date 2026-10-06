@@ -1,4 +1,6 @@
 import { defineStore } from 'pinia'
+import { useAgendaSubmissionStore } from '@/modules/agenda/stores/agendaSubmissionStore.js'
+import { useAgendaStore } from '@/modules/agenda/stores/agendaStore.js'
 import { clearPersistedAuthSession, mapAuthUser, persistAuthSession, readPersistedAuthSession } from '@/shared/auth/authSessionStorage'
 import { usersApi } from '@/modules/users/services/usersApi'
 import { authApi } from '../services/authApi'
@@ -262,6 +264,8 @@ export const useAuthStore = defineStore('auth', {
     },
 
     logout() {
+      useAgendaSubmissionStore().reset()
+      useAgendaStore().reset()
       this.profileRequestId += 1
       this.isProfileLoading = false
       this.isAuthenticated = false
