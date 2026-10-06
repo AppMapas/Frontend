@@ -39,10 +39,7 @@ const payment = ref({
   paymentDate: todayISO(),
   reference: ''
 })
-const receiptFile = ref(null)
-function onReceiptChange(e) {
-  receiptFile.value = e.target.files?.[0] || null
-}
+const hasInitialPayment = ref(false)
 const templateSelector = ref(null)
 const initialLoading = ref(Boolean(route.query.clientDpi))
 const baseline = ref('')
@@ -225,9 +222,9 @@ onBeforeUnmount(() => {
         <label for="payment-total">Costo total pactado (Q)
           <input id="payment-total" v-model="payment.totalAmountText" type="text" inputmode="decimal" autocomplete="off" placeholder="10000.00" />
         </label>
-        <div class="form-check">
-          <input id="has-initial-payment" v-model="hasInitialPayment" type="checkbox" />
-          <label for="has-initial-payment">El cliente realizará un abono / anticipo ahora</label>
+        <div style="display: flex; align-items: center; gap: 0.5rem; margin-top: 0.75rem;">
+          <input id="has-initial-payment" v-model="hasInitialPayment" type="checkbox" style="width: 16px; height: 16px; margin: 0; cursor: pointer;" />
+          <label for="has-initial-payment" style="margin: 0; cursor: pointer; font-weight: 600;">El cliente realizará un abono / anticipo ahora</label>
         </div>
         <template v-if="hasInitialPayment">
           <div class="payment-form-row">
