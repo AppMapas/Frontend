@@ -17,6 +17,7 @@ import LeaveConfirmation from '@/components/common/LeaveConfirmation.vue'
 import CasePayments from '../components/CasePayments.vue'
 import CaseDocuments from '../components/CaseDocuments.vue'
 import { caseDocumentsApi } from '../services/caseDocumentsApi.js'
+import { paymentProgress, formatPercent } from '../domain/paymentLedger.js'
 
 const route = useRoute()
 const cases = useLegalProcessStore()
@@ -35,6 +36,13 @@ const paymentState = ref({ pending: false, busy: false })
 const reloadOpen = ref(false)
 const updatingRequirement = ref(null)
 const completingCase = ref(false)
+const paymentLedger = ref(null)
+const paymentAdvance = computed(() => paymentProgress(paymentLedger.value))
+const paymentCovered = computed(() => paymentAdvance.value.known && (paymentAdvance.value.settled || paymentAdvance.value.overpaid))
+const requirementAdvance = computed(() => {
+  const items = detail.value?.requirements || []
+  return items.length ? Math.floor(items.filter(item => item.status === 'COMPLETED').length * 1000 / items.length) / 10 : null
+})
 const mandatoryPending = computed(() => detail.value?.requirements.filter(item => item.required && item.status !== 'COMPLETED').length || 0)
 let loadNumber = 0
 const record = computed(() => detail.value?.caseData)
@@ -82,7 +90,7 @@ async function toggleRequirement(item, event) {
   }
 }
 async function completeCase() {
-  if (section.value.busy || mandatoryPending.value || !record.value?.active) return
+  if (section.value.busy || mandatoryPending.value || !paymentCovered.value || !record.value?.active) return
   completingCase.value = true
   try {
     const result = await caseDocumentsApi.completeCase(record.value.id)
@@ -98,6 +106,7 @@ async function completeCase() {
 async function load() {
   const current = ++loadNumber
   loading.value = true
+  paymentLedger.value = null
   failed.value = false
   try {
     const id = Number(route.params.id)
@@ -187,6 +196,8 @@ onBeforeUnmount(() => { loadNumber += 1 })
             <div><dt>Actividad</dt><dd><span v-if="record.active">Activo</span><span v-else>Inactivo</span></dd></div>
             <div><dt>Fecha de apertura</dt><dd>{{ formatTimestamp(record.openedAt) }}</dd></div>
             <div><dt>Última actualización</dt><dd>{{ formatTimestamp(record.modifiedAt) }}</dd></div>
+            <div><dt>Requisitos cumplidos</dt><dd>{{ requirementAdvance === null ? 'Sin requisitos' : formatPercent(requirementAdvance) }}</dd></div>
+            <div><dt>Avance de pago</dt><dd>{{ !paymentLedger ? 'Consultando pagos…' : paymentAdvance.known ? formatPercent(paymentAdvance.percent) : 'Sin costo pactado' }}</dd></div>
           </dl>
         </BaseCard>
       </div>
@@ -210,11 +221,6 @@ onBeforeUnmount(() => { loadNumber += 1 })
           </li>
         </ol>
         <p class="meta">{{ mandatoryPending ? `${mandatoryPending} requisito(s) obligatorio(s) pendiente(s).` : 'Todos los requisitos obligatorios están completados.' }}</p>
-        <BaseButton v-if="record.currentStatus !== 'COMPLETED'" :loading="completingCase"
-          :disabled="!record.active || mandatoryPending > 0 || section.busy || section.pending" @click="completeCase">
-          Marcar expediente como completado
-        </BaseButton>
-        <p v-else role="status">Expediente completado.</p>
       </BaseCard>
       <CasePayments
         :key="'pay-'+record.id"
@@ -222,6 +228,7 @@ onBeforeUnmount(() => { loadNumber += 1 })
         :active="record.active"
         @state="paymentState = $event"
         @version="syncVersion"
+        @ledger="paymentLedger = $event"
       />
       <form novalidate @submit.prevent="save">
         <BaseCard class="form-section">
@@ -232,6 +239,14 @@ onBeforeUnmount(() => { loadNumber += 1 })
           <div class="form-actions"><BaseButton v-if="record.active" type="submit" :loading="busy" :disabled="!dirty">Guardar observaciones</BaseButton></div>
         </BaseCard>
       </form>
+      <p v-if="record.currentStatus !== 'COMPLETED'" class="meta">Para marcar como completado se debe de cumplir con todos los requisitos y el total del costo pactado</p>
+      <div class="form-actions">
+        <BaseButton v-if="record.currentStatus !== 'COMPLETED'" :loading="completingCase"
+          :disabled="!record.active || mandatoryPending > 0 || !paymentCovered || section.busy || section.pending" @click="completeCase">
+          Marcar expediente como completado
+        </BaseButton>
+        <p v-else role="status">Expediente completado.</p>
+      </div>
     </div>
     <BaseModal :open="reloadOpen" title-id="reload-case-title" @close="reloadOpen = false">
       <div class="confirm-content"><h2 id="reload-case-title">Recargar expediente</h2>
