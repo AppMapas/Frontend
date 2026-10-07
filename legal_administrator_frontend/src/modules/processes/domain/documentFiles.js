@@ -1,9 +1,9 @@
-const types = { pdf: 'application/pdf', jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png' }
+const types = { pdf: 'application/pdf' }
 
 export function documentFileError(file, policy) {
   if (!policy) return 'No se ha podido consultar el límite de archivos. Reintenta la carga.'
   const extension = file.name.split('.').pop().toLowerCase()
-  if (!policy.extensions.includes(extension) || !types[extension]) return 'Solo se permiten PDF, JPG y PNG.'
+  if (!policy.extensions.includes(extension) || !types[extension]) return 'Solo se permiten documentos PDF.'
   if (file.type && file.type !== 'application/octet-stream' && file.type !== types[extension]) {
     return 'El tipo de archivo no coincide con su extensión.'
   }
