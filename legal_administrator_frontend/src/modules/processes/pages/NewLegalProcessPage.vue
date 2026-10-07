@@ -15,6 +15,9 @@ import BaseCard from '@/components/common/BaseCard.vue'
 import BaseButton from '@/components/common/BaseButton.vue'
 import LoadingCards from '@/components/common/LoadingCards.vue'
 import LeaveConfirmation from '@/components/common/LeaveConfirmation.vue'
+import { casePaymentsApi } from '../services/casePaymentsApi.js'
+import { caseDocumentsApi } from '../services/caseDocumentsApi.js'
+import { parseAmount, todayISO } from '../domain/paymentLedger.js'
 
 const route = useRoute()
 const router = useRouter()
@@ -27,6 +30,17 @@ const newClient = ref(emptyClient())
 const template = ref(null)
 const templateLoading = ref(false)
 const generalDetails = ref('')
+const payment = ref({
+  totalAmountText: '',
+  amountText: '',
+  paymentType: 'ANTICIPO',
+  paymentMethod: 'EFECTIVO',
+  concept: '',
+  paymentDate: todayISO(),
+  reference: ''
+})
+const receiptFile = ref(null)
+const hasInitialPayment = ref(false)
 const errors = ref({})
 const fields = ref(null)
 const templateSelector = ref(null)
@@ -44,7 +58,8 @@ const busy = computed(() => cases.creating)
 const leave = useLeaveConfirmation(dirty, busy)
 const submitLabel = computed(() => {
   if (cases.uncertain) return 'Reintentar guardado'
-  return 'Abrir expediente'
+  if (cases.draftId) return 'Continuar apertura'
+  return 'Crear expediente'
 })
 function modeVariant(value) {
   if (mode.value === value) return 'primary'
@@ -72,6 +87,25 @@ async function submit() {
     }
     payload = { processTypeId: template.value.id, processTypeVersion: template.value.version,
       generalDetails: generalDetails.value.trim() || null }
+    const pAmount = parseAmount(payment.value.amountText)
+    if (payment.value.amountText.trim()) {
+      if (pAmount.error || pAmount.cents <= 0) {
+        notifications.show('Revisa el monto del abono: ' + (pAmount.error || 'Debe ser mayor a cero.'), 'warning')
+        return
+      }
+      payload.initialPayment = {
+        amount: pAmount.cents / 100,
+        paymentType: payment.value.paymentType,
+        paymentMethod: payment.value.paymentMethod,
+        concept: payment.value.concept.trim() || 'Abono al abrir expediente',
+        paymentDate: payment.value.paymentDate,
+        reference: payment.value.reference.trim() || null
+      }
+    }
+    const pTotal = parseAmount(payment.value.totalAmountText)
+    if (payment.value.totalAmountText.trim() && !pTotal.error && pTotal.cents >= 0) {
+      // opcional: el backend no lo guarda al crear; pero podemos registrar tras crear
+    }
     if (generalDetails.value.length > 5000) {
       notifications.show('Las observaciones admiten hasta 5000 caracteres.', 'warning')
       return
@@ -87,7 +121,11 @@ async function submit() {
       payload.client = clientPayload(newClient.value)
     } else {
       if (!existingClient.value?.active || !completeClient(existingClient.value)) {
-        notifications.show('Selecciona un cliente activo con nacionalidad, estado civil y dirección completos.', 'warning')
+        notifications.show('Selecciona un cliente activo con nacionalidad, estado civil y dirección completos.', 'warning', 'Completar datos', () => {
+          if (existingClient.value?.dpi) {
+            router.push({ name: 'client-edit', params: { dpi: existingClient.value.dpi } })
+          }
+        })
         form.value?.querySelector('#case-client-query')?.focus()
         return
       }
@@ -97,13 +135,21 @@ async function submit() {
   try {
     const detail = await cases.open(payload)
     if (!alive || !detail) return
-    newClient.value = emptyClient()
-    existingClient.value = null
-    template.value = null
-    generalDetails.value = ''
-    baseline.value = capture()
+    // costo total opcional
+    try {
+      const pTotal = parseAmount(payment.value.totalAmountText)
+      if (payment.value.totalAmountText.trim() && !pTotal.error && pTotal.cents >= 0) {
+        await casePaymentsApi.setTotalAmount(detail.caseData.id, { version: detail.caseData.version, totalAmount: pTotal.cents / 100 })
+      }
+    } catch (e) { /* no bloquea creación */ }
+    // comprobante opcional
+    if (receiptFile.value && detail.caseData.id) {
+      try { await caseDocumentsApi.upload(detail.caseData.id, receiptFile.value) } catch (e) {}
+    }
     notifications.show('Expediente ' + detail.caseData.caseCode + ' registrado correctamente.', 'success')
-    await router.replace({ name: 'legal-process-detail', params: { id: detail.caseData.id } })
+    // Reset dirty state before navigation to avoid leave confirmation
+    baseline.value = capture()
+    await router.replace({ name: 'legal-processes' })
   } catch (error) {
     if (!alive) return
     if (cases.uncertain) {
@@ -181,6 +227,53 @@ onBeforeUnmount(() => {
           <textarea id="case-notes" v-model="generalDetails" :disabled="frozen" maxlength="5000" rows="4" placeholder="Detalles relevantes para el despacho"></textarea>
         </label>
         <span class="meta">{{ generalDetails.length }} / 5000 caracteres</span>
+      </BaseCard>
+      <BaseCard class="form-section">
+        <header><h2>4. Pagos (opcional)</h2><p class="help">Registra costo total y un anticipo/abono al crear el expediente.</p></header>
+        <label for="payment-total">Costo total pactado (Q)
+          <input id="payment-total" v-model="payment.totalAmountText" type="text" inputmode="decimal" autocomplete="off" placeholder="10000.00" />
+        </label>
+        <div style="display: flex; align-items: center; gap: 0.5rem; margin-top: 0.75rem;">
+          <input id="has-initial-payment" v-model="hasInitialPayment" type="checkbox" style="width: 16px; height: 16px; margin: 0; cursor: pointer;" />
+          <label for="has-initial-payment" style="margin: 0; cursor: pointer; font-weight: 600;">El cliente realizará un abono / anticipo ahora</label>
+        </div>
+        <template v-if="hasInitialPayment">
+          <div class="payment-form-row">
+            <label for="payment-amount">Monto del abono (Q)
+              <input id="payment-amount" v-model="payment.amountText" type="text" inputmode="decimal" autocomplete="off" placeholder="5000.00" />
+            </label>
+            <label for="payment-type">Tipo
+              <select id="payment-type" v-model="payment.paymentType">
+                <option value="ANTICIPO">Anticipo</option>
+                <option value="ABONO">Abono</option>
+                <option value="PAGO_FINAL">Pago final</option>
+              </select>
+            </label>
+            <label for="payment-method">Forma de pago
+              <select id="payment-method" v-model="payment.paymentMethod">
+                <option value="EFECTIVO">Efectivo</option>
+                <option value="TRANSFERENCIA">Transferencia</option>
+                <option value="TARJETA">Tarjeta</option>
+                <option value="CHEQUE">Cheque</option>
+                <option value="OTRO">Otro</option>
+              </select>
+            </label>
+          </div>
+          <label for="payment-concept">Concepto
+            <input id="payment-concept" v-model="payment.concept" type="text" maxlength="120" placeholder="50% inicial" />
+          </label>
+          <div class="payment-form-row">
+            <label for="payment-date">Fecha del pago
+              <input id="payment-date" v-model="payment.paymentDate" type="date" :max="todayISO()" />
+            </label>
+            <label for="payment-reference">Referencia (opcional)
+              <input id="payment-reference" v-model="payment.reference" type="text" maxlength="60" placeholder="Recibo o transferencia" />
+            </label>
+          </div>
+          <label for="payment-receipt">Comprobante de pago (opcional)
+            <input id="payment-receipt" type="file" accept=".pdf,.jpg,.jpeg,.png" @change="onReceiptChange" />
+          </label>
+        </template>
       </BaseCard>
       <div class="form-actions">
         <RouterLink class="link-button" :to="{ name: 'legal-processes' }">Volver al listado</RouterLink>

@@ -13,9 +13,11 @@ import {
 } from '../domain/documentFiles.js'
 import { formatTimestamp } from '../domain/caseRegistration.js'
 
-const props = defineProps({ caseId: { type: Number, required: true }, active: Boolean })
-const emit = defineEmits(['state'])
+const props = defineProps({ caseId: { type: Number, required: true }, requirementId: Number, requiresDocument: Boolean, active: Boolean })
+const emit = defineEmits(['state', 'documents'])
 const documents = ref([])
+watch(() => documents.value.filter(document => document.contentType === 'application/pdf').length,
+  count => emit('documents', count), { immediate: true })
 const queue = ref([])
 const policy = ref(null)
 const loading = ref(true)
@@ -25,8 +27,6 @@ const feedback = ref('')
 const opening = ref(null)
 const preview = ref(null)
 const filesInput = ref(null)
-const galleryInput = ref(null)
-const cameraInput = ref(null)
 // Solo los archivos que el servidor todavía podría aceptar cuentan como pendientes:
 // los inválidos o ya rechazados se muestran con su error, pero no bloquean la navegación.
 const isWaiting = (item) => !item.validation && item.status !== 'saved' && item.status !== 'rejected'
@@ -44,7 +44,7 @@ async function load() {
   loading.value = true
   error.value = ''
   try {
-    const [items, rules] = await Promise.all([caseDocumentsApi.list(props.caseId), caseDocumentsApi.policy()])
+    const [items, rules] = await Promise.all([caseDocumentsApi.list(props.caseId, props.requirementId), caseDocumentsApi.policy()])
     if (!alive) return
     documents.value = items
     policy.value = rules
@@ -76,7 +76,7 @@ async function upload() {
       item.status = 'uploading'
       item.error = ''
       try {
-        const document = await caseDocumentsApi.upload(props.caseId, item.file)
+        const document = await caseDocumentsApi.upload(props.caseId, item.file, props.requirementId)
         if (!alive) break
         documents.value.unshift(document)
         item.status = 'saved'
@@ -179,22 +179,16 @@ onBeforeUnmount(() => {
 <template>
   <BaseCard class="form-section documents-section">
     <header class="record-heading">
-      <div><h2>Documentos adjuntos</h2><p class="help">Escrituras, DPI, licencias y documentación del expediente.</p></div>
-      <BaseButton variant="outline" :disabled="loading || uploading" @click="load">Actualizar documentos</BaseButton>
+      <div><h2>Documentos adjuntos</h2><p class="help">{{ requirementId ? (requiresDocument ? 'Este requisito exige un documento adjunto.' : 'Puedes adjuntar evidencia opcional para este requisito.') : 'Documentación del expediente.' }}</p></div>
     </header>
     <p v-if="error" role="alert" class="document-error">{{ error }} <button type="button" class="link-button" @click="load" :disabled="loading || uploading">Reintentar consulta</button></p>
     <p v-if="loading" role="status">Cargando documentos…</p>
     <template v-if="policy && active">
-      <p class="help">PDF, JPG y PNG · Máximo {{ formatFileSize(policy.maxFileSize) }} por archivo. Puedes agregar varios documentos.</p>
+      <p class="help">Solo PDF · Máximo {{ formatFileSize(policy.maxFileSize) }} por archivo.</p>
       <div class="actions">
         <BaseButton variant="outline" :disabled="uploading" @click="filesInput.click()">Seleccionar archivos</BaseButton>
-        <BaseButton variant="outline" :disabled="uploading" @click="galleryInput.click()">Galería</BaseButton>
-        <BaseButton variant="outline" :disabled="uploading" @click="cameraInput.click()">Tomar foto</BaseButton>
       </div>
-      <input ref="filesInput" type="file" hidden multiple accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" @change="selectFiles" />
-      <input ref="galleryInput" type="file" hidden multiple accept="image/jpeg,image/png" @change="selectFiles" />
-      <input ref="cameraInput" type="file" hidden accept="image/jpeg,image/png" capture="environment" @change="selectFiles" />
-      <p class="help">En el teléfono, «Tomar foto» solicita la cámara según el navegador. Si la foto está en HEIC, conviértela a JPG o PNG.</p>
+      <input ref="filesInput" type="file" hidden multiple accept=".pdf,application/pdf" @change="selectFiles" />
       <ul v-if="queue.length" class="document-list" aria-label="Archivos seleccionados">
         <li v-for="item in queue" :key="item.id">
           <div class="document-info"><strong>{{ item.file.name }}</strong><span>{{ formatFileSize(item.file.size) }}</span>

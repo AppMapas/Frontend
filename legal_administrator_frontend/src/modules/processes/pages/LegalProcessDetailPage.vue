@@ -14,9 +14,11 @@ import BaseBadge from '@/components/common/BaseBadge.vue'
 import BaseModal from '@/components/common/BaseModal.vue'
 import LoadingCards from '@/components/common/LoadingCards.vue'
 import LeaveConfirmation from '@/components/common/LeaveConfirmation.vue'
-import CaseDocuments from '../components/CaseDocuments.vue'
 import CasePayments from '../components/CasePayments.vue'
 import UpcomingActivities from '@/modules/agenda/components/UpcomingActivities.vue'
+import CaseDocuments from '../components/CaseDocuments.vue'
+import { caseDocumentsApi } from '../services/caseDocumentsApi.js'
+import { paymentProgress, formatPercent } from '../domain/paymentLedger.js'
 
 const route = useRoute()
 const cases = useLegalProcessStore()
@@ -29,9 +31,20 @@ const savedNotes = ref('')
 const loading = ref(true)
 const failed = ref(false)
 const busy = ref(false)
-const documentState = ref({ pending: false, busy: false })
+const documentStates = ref({})
+const documentCounts = ref({})
 const paymentState = ref({ pending: false, busy: false })
 const reloadOpen = ref(false)
+const updatingRequirement = ref(null)
+const completingCase = ref(false)
+const paymentLedger = ref(null)
+const paymentAdvance = computed(() => paymentProgress(paymentLedger.value))
+const paymentCovered = computed(() => paymentAdvance.value.known && (paymentAdvance.value.settled || paymentAdvance.value.overpaid))
+const requirementAdvance = computed(() => {
+  const items = detail.value?.requirements || []
+  return items.length ? Math.floor(items.filter(item => item.status === 'COMPLETED').length * 1000 / items.length) / 10 : null
+})
+const mandatoryPending = computed(() => detail.value?.requirements.filter(item => item.required && item.status !== 'COMPLETED').length || 0)
 let loadNumber = 0
 const record = computed(() => detail.value?.caseData)
 const title = computed(() => record.value?.caseCode || 'Detalle del expediente')
@@ -39,8 +52,8 @@ const dirty = computed(() => !loading.value && notes.value !== savedNotes.value)
 // Documentos y pagos son secciones independientes: el aviso de salida tiene que
 //uya en cuenta cualquiera de las dos con trabajo a medias.
 const section = computed(() => ({
-  pending: documentState.value.pending || paymentState.value.pending,
-  busy: documentState.value.busy || paymentState.value.busy,
+  pending: Object.values(documentStates.value).some(state => state.pending) || paymentState.value.pending,
+  busy: Object.values(documentStates.value).some(state => state.busy) || paymentState.value.busy || updatingRequirement.value !== null || completingCase.value,
 }))
 const leave = useLeaveConfirmation(
   computed(() => dirty.value || section.value.pending),
@@ -54,9 +67,47 @@ const leave = useLeaveConfirmation(
 function syncVersion(next) {
   if (record.value && Number.isSafeInteger(next)) record.value.version = next
 }
+async function toggleRequirement(item, event) {
+  const checked = event.target.checked
+  event.target.checked = item.status === 'COMPLETED'
+  if (updatingRequirement.value !== null || !record.value?.active) return
+  if (checked && item.requiresDocument && !documentCounts.value[item.id]) {
+    notifications.show('Adjunta y guarda un PDF antes de marcar este requisito como completado.', 'warning')
+    return
+  }
+  updatingRequirement.value = item.id
+  try {
+    const status = checked ? 'COMPLETED' : 'PENDING'
+    await caseDocumentsApi.updateRequirementStatus(record.value.id, item.id, status)
+    item.status = status
+    const refreshed = await cases.get(record.value.id)
+    detail.value.caseData = refreshed.caseData
+    notifications.show(checked ? 'Requisito completado.' : 'Requisito marcado como pendiente.', 'success')
+  } catch (error) {
+    notifyRequestError(error, 'No fue posible guardar el estado del requisito.')
+  } finally {
+    event.target.checked = item.status === 'COMPLETED'
+    updatingRequirement.value = null
+  }
+}
+async function completeCase() {
+  if (section.value.busy || mandatoryPending.value || !paymentCovered.value || !record.value?.active) return
+  completingCase.value = true
+  try {
+    const result = await caseDocumentsApi.completeCase(record.value.id)
+    record.value.currentStatus = result.status
+    syncVersion(result.version)
+    notifications.show('Expediente completado correctamente.', 'success')
+  } catch (error) {
+    notifyRequestError(error, 'No fue posible completar el expediente.')
+  } finally {
+    completingCase.value = false
+  }
+}
 async function load() {
   const current = ++loadNumber
   loading.value = true
+  paymentLedger.value = null
   failed.value = false
   try {
     const id = Number(route.params.id)
@@ -146,6 +197,8 @@ onBeforeUnmount(() => { loadNumber += 1 })
             <div><dt>Actividad</dt><dd><span v-if="record.active">Activo</span><span v-else>Inactivo</span></dd></div>
             <div><dt>Fecha de apertura</dt><dd>{{ formatTimestamp(record.openedAt) }}</dd></div>
             <div><dt>Última actualización</dt><dd>{{ formatTimestamp(record.modifiedAt) }}</dd></div>
+            <div><dt>Requisitos cumplidos</dt><dd>{{ requirementAdvance === null ? 'Sin requisitos' : formatPercent(requirementAdvance) }}</dd></div>
+            <div><dt>Avance de pago</dt><dd>{{ !paymentLedger ? 'Consultando pagos…' : paymentAdvance.known ? formatPercent(paymentAdvance.percent) : 'Sin costo pactado' }}</dd></div>
           </dl>
         </BaseCard>
       </div>
@@ -158,18 +211,27 @@ onBeforeUnmount(() => { loadNumber += 1 })
             <p v-if="item.description">{{ item.description }}</p><p v-if="item.instructions">{{ item.instructions }}</p>
             <div class="actions"><BaseBadge v-if="item.required" variant="teal">Obligatorio</BaseBadge><BaseBadge v-else variant="neutral">Opcional</BaseBadge>
               <span v-if="item.requiresDocument" class="meta">Requiere documentación</span></div>
+            <label class="requirement-check">
+              <input type="checkbox" :checked="item.status === 'COMPLETED'"
+                :disabled="!record.active || updatingRequirement !== null || documentStates[item.id]?.busy || (item.requiresDocument && !documentCounts[item.id] && item.status !== 'COMPLETED')" @change="toggleRequirement(item, $event)" />
+              {{ item.status === 'COMPLETED' ? 'Completado' : '¿Marcar como completado?' }}
+            </label>
+            <p v-if="item.requiresDocument && !documentCounts[item.id]" class="meta">Guarda un PDF para poder marcar este requisito como completado.</p>
+            <CaseDocuments :case-id="record.id" :requirement-id="item.id" :requires-document="item.requiresDocument"
+              :active="record.active" @state="documentStates[item.id] = $event" @documents="documentCounts[item.id] = $event" />
           </li>
         </ol>
+        <p class="meta">{{ mandatoryPending ? `${mandatoryPending} requisito(s) obligatorio(s) pendiente(s).` : 'Todos los requisitos obligatorios están completados.' }}</p>
       </BaseCard>
       <UpcomingActivities v-if="record" :case-id="record.id" />
       <CasePayments
-        :key="record.id"
+        :key="'pay-'+record.id"
         :case-id="record.id"
         :active="record.active"
         @state="paymentState = $event"
         @version="syncVersion"
+        @ledger="paymentLedger = $event"
       />
-      <CaseDocuments :key="record.id" :case-id="record.id" :active="record.active" @state="documentState = $event" />
       <form novalidate @submit.prevent="save">
         <BaseCard class="form-section">
           <h2>Observaciones</h2>
@@ -179,6 +241,14 @@ onBeforeUnmount(() => { loadNumber += 1 })
           <div class="form-actions"><BaseButton v-if="record.active" type="submit" :loading="busy" :disabled="!dirty">Guardar observaciones</BaseButton></div>
         </BaseCard>
       </form>
+      <p v-if="record.currentStatus !== 'COMPLETED'" class="meta">Para marcar como completado se debe de cumplir con todos los requisitos y el total del costo pactado</p>
+      <div class="form-actions">
+        <BaseButton v-if="record.currentStatus !== 'COMPLETED'" :loading="completingCase"
+          :disabled="!record.active || mandatoryPending > 0 || !paymentCovered || section.busy || section.pending" @click="completeCase">
+          Marcar expediente como completado
+        </BaseButton>
+        <p v-else role="status">Expediente completado.</p>
+      </div>
     </div>
     <BaseModal :open="reloadOpen" title-id="reload-case-title" @close="reloadOpen = false">
       <div class="confirm-content"><h2 id="reload-case-title">Recargar expediente</h2>
@@ -196,4 +266,6 @@ onBeforeUnmount(() => { loadNumber += 1 })
 .requirement-top { display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; justify-content: space-between; }
 .requirements-list h3, .requirements-list p { white-space: pre-line; overflow-wrap: anywhere; }
 .requirements-list p { font-size: .9rem; }
+.office-page .requirement-check { display: flex; align-items: center; gap: .6rem; min-height: 44px; cursor: pointer; }
+.office-page .requirement-check input { width: 18px; height: 18px; min-height: 18px; margin: 0; padding: 0; flex: 0 0 18px; accent-color: var(--color-primary); }
 </style>

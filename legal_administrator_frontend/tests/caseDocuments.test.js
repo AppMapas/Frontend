@@ -15,10 +15,12 @@ beforeEach(() => configureHttpClientAuth({ getAccessToken: () => 'documents-toke
 afterEach(() => mock.restoreAll())
 
 test('valida formatos, tamaño, archivos vacíos y MIME antes de subir', () => {
-  for (const [name, type] of [['DPI.PDF', 'application/pdf'], ['foto.jpeg', 'image/jpeg'], ['foto.png', 'image/png']]) {
+  for (const [name, type] of [['DPI.PDF', 'application/pdf']]) {
     assert.equal(documentFileError({ name, type, size: 1024 }, policy), '')
   }
   for (const file of [
+    { name: 'foto.jpeg', type: 'image/jpeg', size: 50 },
+    { name: 'foto.png', type: 'image/png', size: 50 },
     { name: 'foto.heic', type: 'image/heic', size: 50 },
     { name: 'dpi.pdf', type: 'text/html', size: 50 },
     { name: 'dpi.pdf', type: 'application/pdf', size: 0 },

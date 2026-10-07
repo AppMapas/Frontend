@@ -18,6 +18,9 @@ import { casePaymentsApi } from '../services/casePaymentsApi.js'
 import { useAuthStore } from '@/modules/auth/stores/authStore.js'
 import { useFinancialSubmissionStore } from '@/shared/finance/financialSubmissionStore.js'
 import { cashApi } from '../../cash/services/cashApi.js'
+import { caseDocumentsApi } from '../services/caseDocumentsApi.js'
+import { documentFileError } from '../domain/documentFiles.js'
+import PaymentReceiptRow from './PaymentReceiptRow.vue'
 import {
   PAYMENT_METHODS, PAYMENT_METHOD_LABELS, PAYMENT_TYPES, PAYMENT_TYPE_LABELS,
   amountToRequest, formatMoney, formatPaymentDate, formatPercent, parseAmount,
@@ -26,7 +29,7 @@ import {
 } from '../domain/paymentLedger.js'
 
 const props = defineProps({ caseId: { type: Number, required: true }, active: Boolean })
-const emit = defineEmits(['state', 'version'])
+const emit = defineEmits(['state', 'version', 'ledger'])
 const notifications = useNotificationStore()
 const auth = useAuthStore()
 const submission = useFinancialSubmissionStore()
@@ -37,6 +40,87 @@ const annulReason = ref('')
 const annulUncertain = ref(false)
 
 const ledger = ref(null)
+const receipt = ref(null)
+const receiptPolicy = ref(null)
+const receiptUrl = ref('')
+const openingReceipt = ref(false)
+const receipts = ref({})
+const receiptInput = ref(null)
+let receiptLoad = 0
+async function loadReceipts() {
+  const current = ++receiptLoad
+  try {
+    const entries = await Promise.all((ledger.value?.payments || []).map(async payment =>
+      [payment.id, (await caseDocumentsApi.receipts(props.caseId, payment.id))[0] || null]))
+    if (alive && current === receiptLoad) receipts.value = Object.fromEntries(entries)
+  } catch (cause) { if (alive) notifyRequestError(cause, 'No fue posible cargar los comprobantes.') }
+}
+async function selectReceipt(event) {
+  const file = event.target.files?.[0] || null
+  formErrors.value.receipt = ''
+  if (!file) return
+  try {
+    receiptPolicy.value = await caseDocumentsApi.policy()
+    const error = documentFileError(file, receiptPolicy.value)
+    if (error) { formErrors.value.receipt = error; event.target.value = ''; return }
+    receipt.value = file
+  } catch (cause) { notifyRequestError(cause, 'No fue posible validar el comprobante.') }
+}
+function removeSelectedReceipt() {
+  receipt.value = null
+  if (receiptInput.value) receiptInput.value.value = ''
+}
+function viewSelectedReceipt() {
+  closeReceipt()
+  receiptUrl.value = URL.createObjectURL(receipt.value)
+}
+function downloadBlob(blob, name) {
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = name
+  link.click()
+  setTimeout(() => URL.revokeObjectURL(url), 1000)
+}
+async function downloadReceipt(payment) {
+  if (openingReceipt.value) return
+  openingReceipt.value = true
+  try {
+    const document = receipts.value[payment.id]
+    const blob = await caseDocumentsApi.content(props.caseId, document.id, true)
+    downloadBlob(blob, document.name)
+  } catch (cause) { notifyRequestError(cause, 'No fue posible descargar el comprobante.') }
+  finally { openingReceipt.value = false }
+}
+async function removeReceipt(payment) {
+  if (openingReceipt.value) return
+  openingReceipt.value = true
+  try {
+    await caseDocumentsApi.removeReceipt(props.caseId, payment.id, receipts.value[payment.id].id)
+    receipts.value[payment.id] = null
+    closeReceipt()
+    notifications.show('Comprobante eliminado. El abono se conserva.', 'success')
+  } catch (cause) { notifyRequestError(cause, 'No fue posible quitar el comprobante.') }
+  finally { openingReceipt.value = false }
+}
+function closeReceipt() {
+  if (receiptUrl.value) URL.revokeObjectURL(receiptUrl.value)
+  receiptUrl.value = ''
+}
+async function viewReceipt(payment) {
+  if (openingReceipt.value) return
+  openingReceipt.value = true
+  try {
+    const items = await caseDocumentsApi.receipts(props.caseId, payment.id)
+    if (!items.length) { notifications.show('Este abono no tiene comprobante adjunto.', 'info'); return }
+    const blob = await caseDocumentsApi.content(props.caseId, items[0].id)
+    if (!alive) return
+    closeReceipt()
+    receiptUrl.value = URL.createObjectURL(blob)
+  } catch (cause) {
+    notifyRequestError(cause, 'No fue posible consultar el comprobante.')
+  } finally { openingReceipt.value = false }
+}
 const loading = ref(true)
 const saving = ref(false)
 const error = ref('')
@@ -86,6 +170,8 @@ async function load() {
 
 function applyLedger(result) {
   ledger.value = result
+  loadReceipts()
+  emit('ledger', result)
   // El backend incrementa la versión del expediente al pactar el costo; sin esto,
   // guardar las observaciones después daría un conflicto por versión antigua.
   emit('version', result.caseVersion)
@@ -103,6 +189,7 @@ function openPaymentForm() {
     notifications.show('Confirma el movimiento pendiente en Caja antes de registrar otro abono.', 'warning')
     return
   }
+  if (!pendingHere.value) receipt.value = null
   form.value = emptyForm()
   if (pendingHere.value) {
     const payload = submission.pending.payload
@@ -133,6 +220,12 @@ async function submit() {
   if (!pendingHere.value) {
     const amount = parseAmount(form.value.amount)
     formErrors.value = paymentFormErrors(form.value, { today: todayISO() })
+    if (receipt.value) {
+      try { receiptPolicy.value = await caseDocumentsApi.policy() }
+      catch (cause) { notifyRequestError(cause, 'No fue posible validar el comprobante.'); return }
+      const fileError = documentFileError(receipt.value, receiptPolicy.value)
+      if (fileError) formErrors.value.receipt = fileError
+    }
     if (amount.error || amount.cents <= 0) formErrors.value.amount = amount.error || 'El monto debe ser mayor que cero.'
     if (Object.keys(formErrors.value).length) {
       notifications.show(Object.values(formErrors.value)[0], 'warning')
@@ -146,12 +239,25 @@ async function submit() {
   }
   saving.value = true
   try {
-    const result = await submission.send(paymentEndpoint.value, payload, auth.user?.dpi, 'ledger')
+    const operation = submission.send(paymentEndpoint.value, payload, auth.user?.dpi, 'ledger')
+    const requestId = submission.pending?.payload.requestId
+    const result = await operation
     if (!alive || !result) return
     applyLedger(result)
+    let receiptFailed = false
+    if (receipt.value) {
+      try { await caseDocumentsApi.uploadReceipt(props.caseId, requestId, receipt.value) }
+      catch (cause) {
+        receiptFailed = true
+        notifyRequestError(cause, 'El abono fue registrado, pero no se pudo guardar el comprobante. No registres el abono nuevamente.')
+      }
+      await loadReceipts()
+    }
     formOpen.value = false
     form.value = emptyForm()
-    notifications.show('Abono registrado.', 'success')
+    const hadReceipt = !!receipt.value
+    receipt.value = null
+    if (!receiptFailed) notifications.show(hadReceipt ? 'Abono registrado y comprobante PDF guardado.' : 'Abono registrado.', 'success')
   } catch (cause) {
     if (!alive) return
     if (submission.uncertain) {
@@ -222,6 +328,7 @@ async function confirmAnnul() {
 
 onMounted(() => { load(); if (pendingHere.value) openPaymentForm() })
 onBeforeUnmount(() => {
+  closeReceipt()
   alive = false
   emit('state', { pending: false, busy: false })
 })
@@ -234,7 +341,6 @@ onBeforeUnmount(() => {
         <h2>Pagos y anticipos</h2>
         <p class="help">Anticipos y abonos del cliente, con el saldo pendiente al día.</p>
       </div>
-      <BaseButton variant="outline" :disabled="loading || saving" @click="load">Actualizar</BaseButton>
     </header>
 
     <BaseButton v-if="error" variant="outline" :disabled="loading || saving" @click="load">Reintentar consulta</BaseButton>
@@ -272,10 +378,18 @@ onBeforeUnmount(() => {
       </div>
 
       <p v-if="!active" class="help">Este expediente está inactivo. Puedes consultar sus pagos, pero no registrar abonos.</p>
-      <div v-else class="actions">
-        <BaseButton :disabled="saving || unresolved" @click="openPaymentForm">Registrar abono</BaseButton>
-        <BaseButton variant="outline" :disabled="saving || unresolved" @click="openTotalForm">
+      <div class="actions">
+        <BaseButton v-if="active" :disabled="saving || unresolved" @click="openPaymentForm">Registrar abono</BaseButton>
+        <BaseButton v-if="active" variant="outline" :disabled="saving || unresolved" @click="openTotalForm">
           {{ ledger.totalAgreed ? 'Editar costo total' : 'Definir costo total' }}
+        </BaseButton>
+        <BaseButton variant="outline" :disabled="loading || saving" @click="load"
+          title="Recargar pagos y anticipos" aria-label="Recargar pagos y anticipos">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M20 7v5h-5" />
+            <path d="M20 12a8 8 0 1 0-2.34 5.66M20 7l-2.34-2.66" />
+          </svg>
         </BaseButton>
       </div>
 
@@ -362,23 +476,26 @@ onBeforeUnmount(() => {
               :aria-describedby="formErrors.paymentDate ? 'payment-date-error' : undefined"
             />
           </label>
-          <label for="payment-reference">Referencia (opcional)
-            <input :disabled="saving || pendingHere"
-              id="payment-reference"
-              v-model="form.reference"
-              type="text"
-              maxlength="60"
-              placeholder="Recibo o transferencia"
-              :aria-invalid="!!formErrors.reference"
-              :aria-describedby="formErrors.reference ? 'payment-reference-error' : undefined"
+          <label for="payment-receipt">Comprobante PDF (opcional)
+            <input
+              id="payment-receipt"
+              ref="receiptInput"
+              type="file"
+              accept=".pdf,application/pdf"
+              :disabled="saving || !!receipt"
+              @change="selectReceipt"
+              :aria-invalid="!!formErrors.receipt"
+              :aria-describedby="formErrors.receipt ? 'payment-receipt-error' : undefined"
             />
           </label>
         </div>
+        <PaymentReceiptRow v-if="receipt" :name="receipt.name" :disabled="saving"
+          @view="viewSelectedReceipt" @remove="removeSelectedReceipt" @download="downloadBlob(receipt, receipt.name)" />
         <p v-if="formErrors.paymentDate" id="payment-date-error" role="alert" class="payment-error">
           {{ formErrors.paymentDate }}
         </p>
-        <p v-if="formErrors.reference" id="payment-reference-error" role="alert" class="payment-error">
-          {{ formErrors.reference }}
+        <p v-if="formErrors.receipt" id="payment-receipt-error" role="alert" class="payment-error">
+          {{ formErrors.receipt }}
         </p>
 
         <div class="actions">
@@ -406,6 +523,9 @@ onBeforeUnmount(() => {
               </div>
               <span v-if="payment.reference" class="mono">Ref. {{ payment.reference }}</span>
               <span class="meta">Registrado por {{ payment.registeredBy }}</span>
+              <PaymentReceiptRow v-if="receipts[payment.id]" :name="receipts[payment.id].name" saved
+                :disabled="openingReceipt || saving || !active" @view="viewReceipt(payment)"
+                @remove="removeReceipt(payment)" @download="downloadReceipt(payment)" />
             </div>
             <BaseButton
               v-if="payment.active && active"
@@ -423,6 +543,13 @@ onBeforeUnmount(() => {
     </template>
   </BaseCard>
 
+  <BaseModal :open="!!receiptUrl" title-id="payment-receipt-title" @close="closeReceipt">
+    <div style="padding: 1rem;">
+      <h2 id="payment-receipt-title">Comprobante de pago</h2>
+      <iframe v-if="receiptUrl" :src="receiptUrl" title="Comprobante PDF" style="width: 100%; height: 70vh; border: 0;"></iframe>
+      <BaseButton variant="outline" @click="closeReceipt">Cerrar</BaseButton>
+    </div>
+  </BaseModal>
   <BaseModal :open="!!annulling" title-id="annul-payment-title" :dismissible="!saving && !annulUncertain" @close="closeAnnul">
     <div v-if="annulling" class="confirm-content">
       <h2 id="annul-payment-title">Anular abono</h2>
