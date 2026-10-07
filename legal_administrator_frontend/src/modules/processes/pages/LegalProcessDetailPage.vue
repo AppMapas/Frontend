@@ -34,6 +34,8 @@ const documentCounts = ref({})
 const paymentState = ref({ pending: false, busy: false })
 const reloadOpen = ref(false)
 const updatingRequirement = ref(null)
+const completingCase = ref(false)
+const mandatoryPending = computed(() => detail.value?.requirements.filter(item => item.required && item.status !== 'COMPLETED').length || 0)
 let loadNumber = 0
 const record = computed(() => detail.value?.caseData)
 const title = computed(() => record.value?.caseCode || 'Detalle del expediente')
@@ -42,7 +44,7 @@ const dirty = computed(() => !loading.value && notes.value !== savedNotes.value)
 //uya en cuenta cualquiera de las dos con trabajo a medias.
 const section = computed(() => ({
   pending: Object.values(documentStates.value).some(state => state.pending) || paymentState.value.pending,
-  busy: Object.values(documentStates.value).some(state => state.busy) || paymentState.value.busy || updatingRequirement.value !== null,
+  busy: Object.values(documentStates.value).some(state => state.busy) || paymentState.value.busy || updatingRequirement.value !== null || completingCase.value,
 }))
 const leave = useLeaveConfirmation(
   computed(() => dirty.value || section.value.pending),
@@ -69,12 +71,28 @@ async function toggleRequirement(item, event) {
     const status = checked ? 'COMPLETED' : 'PENDING'
     await caseDocumentsApi.updateRequirementStatus(record.value.id, item.id, status)
     item.status = status
+    const refreshed = await cases.get(record.value.id)
+    detail.value.caseData = refreshed.caseData
     notifications.show(checked ? 'Requisito completado.' : 'Requisito marcado como pendiente.', 'success')
   } catch (error) {
     notifyRequestError(error, 'No fue posible guardar el estado del requisito.')
   } finally {
     event.target.checked = item.status === 'COMPLETED'
     updatingRequirement.value = null
+  }
+}
+async function completeCase() {
+  if (section.value.busy || mandatoryPending.value || !record.value?.active) return
+  completingCase.value = true
+  try {
+    const result = await caseDocumentsApi.completeCase(record.value.id)
+    record.value.currentStatus = result.status
+    syncVersion(result.version)
+    notifications.show('Expediente completado correctamente.', 'success')
+  } catch (error) {
+    notifyRequestError(error, 'No fue posible completar el expediente.')
+  } finally {
+    completingCase.value = false
   }
 }
 async function load() {
@@ -191,6 +209,12 @@ onBeforeUnmount(() => { loadNumber += 1 })
               :active="record.active" @state="documentStates[item.id] = $event" @documents="documentCounts[item.id] = $event" />
           </li>
         </ol>
+        <p class="meta">{{ mandatoryPending ? `${mandatoryPending} requisito(s) obligatorio(s) pendiente(s).` : 'Todos los requisitos obligatorios están completados.' }}</p>
+        <BaseButton v-if="record.currentStatus !== 'COMPLETED'" :loading="completingCase"
+          :disabled="!record.active || mandatoryPending > 0 || section.busy || section.pending" @click="completeCase">
+          Marcar expediente como completado
+        </BaseButton>
+        <p v-else role="status">Expediente completado.</p>
       </BaseCard>
       <CasePayments
         :key="'pay-'+record.id"

@@ -5,6 +5,7 @@ const destination = (caseId, requirementId) => requirementId
   ? `/legal-processes/${caseId}/requirements/${requirementId}/documents` : base(caseId)
 
 export const caseDocumentsApi = {
+  completeCase: (caseId) => httpClient(`/legal-processes/${caseId}/complete`, { method: 'POST' }),
   updateRequirementStatus: (caseId, requirementId, status) => httpClient(
     `/legal-processes/${caseId}/requirements/${requirementId}/status`, { method: 'PATCH', body: { status } },
   ),
