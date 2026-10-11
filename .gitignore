@@ -5,3 +5,6 @@ context/*
 context/skills/*
 !context/skills/implementar-frontend/
 !context/skills/implementar-frontend/SKILL.md
+.env.aws
+**/__pycache__/
+docs
