@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: Frontend/legal_administrator_frontend
+        working-directory: legal_administrator_frontend
     env:
       AWS_REGION: us-east-2
       ECS_CLUSTER: ${{ vars.ECS_CLUSTER || 'LegalAdministrator' }}
