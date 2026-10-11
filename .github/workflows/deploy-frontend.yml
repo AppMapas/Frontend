@@ -8,9 +8,6 @@ jobs:
   deploy:
     name: Deploy
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: legal_administrator_frontend
     env:
       AWS_REGION: us-east-2
       ECS_CLUSTER: LegalAdministrator
@@ -39,6 +36,7 @@ jobs:
           VITE_API_URL: http://3.141.29.223:8080/api/v1
         run: |
           set -euo pipefail
+          cd legal_administrator_frontend
           IMAGE_URI="$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
           docker build --build-arg VITE_API_URL=$VITE_API_URL -t "$IMAGE_URI" .
           docker push "$IMAGE_URI"
@@ -48,13 +46,13 @@ jobs:
         run: |
           aws ecs describe-task-definition \
             --task-definition legal-administrator-frontend \
-            --query taskDefinition > legal_administrator_frontend/task-definition.json
+            --query taskDefinition > task-definition.json
 
       - name: Fill in the new image ID in the Amazon ECS task definition
         id: render-task-def
         uses: aws-actions/amazon-ecs-render-task-definition@v1
         with:
-          task-definition: legal_administrator_frontend/task-definition.json
+          task-definition: task-definition.json
           container-name: legal-administrator-frontend
           image: ${{ env.IMAGE_URI }}
 
