@@ -1,0 +1,69 @@
+name: Deploy frontend to Amazon ECS
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Frontend/legal_administrator_frontend
+    env:
+      AWS_REGION: us-east-2
+      ECS_CLUSTER: ${{ vars.ECS_CLUSTER || 'LegalAdministrator' }}
+      FRONTEND_SERVICE_NAME: ${{ vars.FRONTEND_SERVICE_NAME || 'legal-frontend' }}
+      ECR_REPOSITORY: legal-administrator-frontend
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Login to Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v2
+
+    - name: Build, tag, and push image to Amazon ECR
+      env:
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        IMAGE_TAG: latest
+        VITE_API_URL: http://3.141.29.223:8080/api/v1
+      run: |
+        set -euo pipefail
+        IMAGE_URI="$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+        docker build --build-arg VITE_API_URL=$VITE_API_URL -t "$IMAGE_URI" .
+        docker push "$IMAGE_URI"
+        echo "IMAGE_URI=$IMAGE_URI" >> "$GITHUB_ENV"
+
+    - name: Render and register new ECS task definition
+      run: |
+        set -euo pipefail
+        SERVICE_JSON=$(aws ecs describe-services --cluster "$ECS_CLUSTER" --services "$FRONTEND_SERVICE_NAME" --output json)
+        TASK_DEF_ARN=$(echo "$SERVICE_JSON" | jq -r '.services[0].taskDefinition')
+        TASK_DEF_JSON=$(aws ecs describe-task-definition --task-definition "$TASK_DEF_ARN" --output json | jq '.taskDefinition')
+        echo "$TASK_DEF_JSON" > /tmp/task-definition.json
+        # Update container image
+        CONTAINER_NAME=$(echo "$TASK_DEF_JSON" | jq -r '.containerDefinitions[0].name')
+        UPDATED_DEF=$(jq --arg img "$IMAGE_URI" --arg name "$CONTAINER_NAME" '
+          .containerDefinitions |= map(if .name == $name then .image = $img else . end)
+          | del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy, .deregisteredAt)
+        ' /tmp/task-definition.json)
+        echo "$UPDATED_DEF" > /tmp/updated-task-definition.json
+        NEW_TASK_DEF_ARN=$(aws ecs register-task-definition --cli-input-json "file:///tmp/updated-task-definition.json" --output text --query 'taskDefinition.taskDefinitionArn')
+        echo "NEW_TASK_DEF_ARN=$NEW_TASK_DEF_ARN" >> "$GITHUB_ENV"
+
+    - name: Update ECS service
+      run: |
+        set -euo pipefail
+        aws ecs update-service --cluster "$ECS_CLUSTER" --service "$FRONTEND_SERVICE_NAME" --task-definition "$NEW_TASK_DEF_ARN" --force-new-deployment
+        aws ecs wait services-stable --cluster "$ECS_CLUSTER" --services "$FRONTEND_SERVICE_NAME"
+
