@@ -48,13 +48,13 @@ jobs:
         run: |
           aws ecs describe-task-definition \
             --task-definition legal-administrator-frontend \
-            --query taskDefinition > task-definition.json
+            --query taskDefinition > legal_administrator_frontend/task-definition.json
 
       - name: Fill in the new image ID in the Amazon ECS task definition
         id: render-task-def
         uses: aws-actions/amazon-ecs-render-task-definition@v1
         with:
-          task-definition: task-definition.json
+          task-definition: legal_administrator_frontend/task-definition.json
           container-name: legal-administrator-frontend
           image: ${{ env.IMAGE_URI }}
 
