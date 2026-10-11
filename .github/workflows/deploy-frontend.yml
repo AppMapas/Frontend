@@ -54,8 +54,8 @@ jobs:
         id: render-task-def
         uses: aws-actions/amazon-ecs-render-task-definition@v1
         with:
-          task-definition: legal_administrator_frontend/task-definition.json
-          container-name: Main
+          task-definition: task-definition.json
+          container-name: legal-administrator-frontend
           image: ${{ env.IMAGE_URI }}
 
       - name: Deploy Amazon ECS task definition
