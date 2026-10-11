@@ -59,7 +59,7 @@ jobs:
           image: ${{ env.IMAGE_URI }}
 
       - name: Deploy Amazon ECS task definition
-        uses: aws-actions/ecs-deploy-task-definition@v2
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
         with:
           task-definition: ${{ steps.render-task-def.outputs.task-definition }}
           service: ${{ env.FRONTEND_SERVICE_NAME }}
