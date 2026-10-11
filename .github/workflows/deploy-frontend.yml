@@ -44,24 +44,24 @@ jobs:
           docker push "$IMAGE_URI"
           echo "IMAGE_URI=$IMAGE_URI" >> "$GITHUB_ENV"
 
-      - name: Render and register new ECS task definition
+      - name: Download task definition
         run: |
-          set -euo pipefail
-          SERVICE_JSON=$(aws ecs describe-services --cluster "$ECS_CLUSTER" --services "$FRONTEND_SERVICE_NAME" --output json)
-          TASK_DEF_ARN=$(echo "$SERVICE_JSON" | jq -r '.services[0].taskDefinition')
-          TASK_DEF_JSON=$(aws ecs describe-task-definition --task-definition "$TASK_DEF_ARN" --output json | jq '.taskDefinition')
-          echo "$TASK_DEF_JSON" > /tmp/task-definition.json
-          CONTAINER_NAME=$(echo "$TASK_DEF_JSON" | jq -r '.containerDefinitions[0].name')
-          UPDATED_DEF=$(jq --arg img "$IMAGE_URI" --arg name "$CONTAINER_NAME" '
-            .containerDefinitions |= map(if .name == $name then .image = $img else . end)
-            | del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy, .deregisteredAt)
-          ' /tmp/task-definition.json)
-          echo "$UPDATED_DEF" > /tmp/updated-task-definition.json
-          NEW_TASK_DEF_ARN=$(aws ecs register-task-definition --cli-input-json "file:///tmp/updated-task-definition.json" --output text --query 'taskDefinition.taskDefinitionArn')
-          echo "NEW_TASK_DEF_ARN=$NEW_TASK_DEF_ARN" >> "$GITHUB_ENV"
+          aws ecs describe-task-definition \
+            --task-definition legal-administrator-frontend \
+            --query taskDefinition > task-definition.json
 
-      - name: Update ECS service
-        run: |
-          set -euo pipefail
-          aws ecs update-service --cluster "$ECS_CLUSTER" --service "$FRONTEND_SERVICE_NAME" --task-definition "$NEW_TASK_DEF_ARN" --force-new-deployment
-          aws ecs wait services-stable --cluster "$ECS_CLUSTER" --services "$FRONTEND_SERVICE_NAME"
+      - name: Fill in the new image ID in the Amazon ECS task definition
+        id: render-task-def
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: legal_administrator_frontend/task-definition.json
+          container-name: Main
+          image: ${{ env.IMAGE_URI }}
+
+      - name: Deploy Amazon ECS task definition
+        uses: aws-actions/ecs-deploy-task-definition@v2
+        with:
+          task-definition: ${{ steps.render-task-def.outputs.task-definition }}
+          service: ${{ env.FRONTEND_SERVICE_NAME }}
+          cluster: ${{ env.ECS_CLUSTER }}
+          wait-for-service-stability: true
