@@ -12,7 +12,7 @@ export const landingRoutes = [
         component: LandingPage,
         meta: {
           public: true,
-          title: 'Licda. Azucely Loayes | Abogada y Notaria',
+          title: 'Legal Administrator',
         },
       },
     ],
